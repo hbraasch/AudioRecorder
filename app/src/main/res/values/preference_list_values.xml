@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="utf-8"?>
+
+<resources>
+
+    <string-array name="listArray">
+        <item>CD quality (44 kHz)</item>
+        <item>Radio quality low (22 kHz)</item>
+        <item>Normal (16 kHz)</item>
+        <item>Low quality (11 kHz)</item>
+    </string-array>
+
+    <string-array name="listValues">
+        <item>1</item>
+        <item>2</item>
+        <item>3</item>
+        <item>4</item>
+    </string-array>
+
+</resources>

@@ -1,0 +1,17 @@
+<menu xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    tools:context="com.example.audio_record.ActivityAudioRecorder">
+    <item android:id="@+id/action_import" android:title="@string/mnu_import_audio_file"
+        android:orderInCategory="1" app:showAsAction="never|withText"
+        android:onClick="onMenuImportClicked"
+        android:visible="false"/>
+    <item android:id="@+id/action_export" android:title="@string/mnu_export_audio_file"
+        android:orderInCategory="2" app:showAsAction="never|withText"
+        android:onClick="onMenuExportClicked"/>
+    <item android:id="@+id/action_mail" android:title="@string/mnu_mail_audio_file"
+        android:orderInCategory="3" app:showAsAction="never|withText" />
+    <item android:id="@+id/action_settings" android:title="@string/action_settings"
+        android:orderInCategory="100" app:showAsAction="never|withText"
+        android:onClick="onMenuSettingsClicked"/>
+</menu>

@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<PreferenceScreen xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <PreferenceCategory
+        android:title="Sound quality">
+        <ListPreference
+            android:title="Pick your sample rate"
+            android:key="listPref"
+            android:defaultValue="digiGreen"
+            android:entries="@array/listArray"
+            android:entryValues="@array/listValues" />
+    </PreferenceCategory>
+
+</PreferenceScreen>
