@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="utf-8"?>
+<PreferenceScreen xmlns:android="http://schemas.android.com/apk/res/android">
+    <PreferenceCategory
+        android:title="First Category">
+        <CheckBoxPreference
+            android:title="Using PIN"
+            android:defaultValue="false"
+            android:key="checkboxPref"
+            android:summaryOn="Disable PIN"
+            android:summaryOff="Enable PIN"/>
+    </PreferenceCategory>
+
+    <PreferenceCategory
+        android:title="Second Category">
+        <ListPreference
+            android:title="Pick your favourite color"
+            android:key="listPref"
+            android:defaultValue="digiGreen"
+            android:entries="@array/listArray"
+            android:entryValues="@array/listValues" />
+    </PreferenceCategory>
+</PreferenceScreen>
