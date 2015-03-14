@@ -45,7 +45,7 @@ public class MainActivity extends ActionBarActivity {
                 fileDir.mkdirs();
             }
             intent.putExtra(ActivityAudioRecorder.INTENT_WORK_FOLDER_FULL_PATH, strAppWorkFolderFullPath);
-            intent.putExtra(ActivityAudioRecorder.INTENT_AUDIO_FULL_FILENAME, strAppWorkFolderFullPath +"/TestAudio.pcm");
+            intent.putExtra(ActivityAudioRecorder.INTENT_AUDIO_FULL_FILENAME, strAppWorkFolderFullPath +"/WavTestFile.wav");
             startActivityForResult(intent, INTENT_REQUEST_CODE);
         }
 

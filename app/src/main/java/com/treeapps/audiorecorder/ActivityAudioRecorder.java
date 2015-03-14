@@ -161,25 +161,14 @@ public class ActivityAudioRecorder extends ActionBarActivity {
                 // Audio files
                 audioLib = new AudioLib(sd.strWorkFolderFullPath);
                 sd.strAudioEditFullFilename = bundle.getString(INTENT_AUDIO_FULL_FILENAME);
-                if (!sd.strAudioEditFullFilename.isEmpty()) {
-                    // This is an edit action, fill the current audio file
-                    sd.audioSampleCurrent = audioLib.new AudioSample(strAudioCurrentPlayFilenameWithoutExt, true).copyFrom(sd.strAudioEditFullFilename);
-                } else {
-                    sd.audioSampleCurrent = audioLib.new AudioSample(strAudioCurrentPlayFilenameWithoutExt, true);
-                }
-                sd.audioSampleInsert = audioLib.new AudioSample(strAudioInsertFilenameWithoutExt, true);
-                
+
+                sd.audioSampleCurrent = audioLib.new AudioSample(strAudioCurrentPlayFilenameWithoutExt); // Fill this on AudioGraph init callback
+                sd.audioSampleInsert = audioLib.new AudioSample(strAudioInsertFilenameWithoutExt);
                 sd.intSampleRate = getSampleRate();
 
                 // Setup GUI
                 setupGui();
 
-                // Set state after initializing
-                if (sd.audioSampleCurrent.exists()) {
-                    sd.sm.setInitialState(State.ReadyWithSample);
-                } else {
-                    sd.sm.setInitialState(State.ReadyWithNoSample);
-                }
 
             }
         } catch (IOException e) {
@@ -495,17 +484,39 @@ public class ActivityAudioRecorder extends ActionBarActivity {
             public void onComplete() {
                 sd.audioGraph.setPageSizeInMs(GRAPH_PAGE_SIZE_IN_MS);
                 sd.audioGraph.clearGraph();
-                if (sd.audioSampleCurrent.exists()) {
 
-                    try {
-                        displayAudioSampleCurrent();
-                    } catch (Exception e) {
-                        Log.e(TAG, "Could not get graph values", e);
+                // Get edit file if passed on via intent
+                if (!sd.strAudioEditFullFilename.isEmpty()) {
+                    File fileEditFile = new File(sd.strAudioEditFullFilename);
+                    if (fileEditFile.exists()) {
+                        final WavFile wavFile = new WavFile();
+                        wavFile.ReadFile(fileEditFile, sd.audioSampleCurrent,new WavFile.OnReadWriteCompleteListener() {
+                            @Override
+                            public void onComplete(boolean boolIsSuccess, String strErrorMessage) {
+                                if (boolIsSuccess) {
+                                    try {
+                                        sd.intSampleRate = wavFile.getSampleRate();
+                                        sd.audioSampleCurrent = audioLib.new AudioSample(strAudioCurrentPlayFilenameWithoutExt);
+                                        displayAudioSampleCurrent();
+                                        sd.sm.setInitialState(State.ReadyWithSample);
+                                        return;
+                                    } catch (Exception e) {
+                                        Toast.makeText(context, "Could not read wav file. " + e.getMessage(), Toast.LENGTH_SHORT).show();
+                                    }
+                                } else {
+                                    Toast.makeText(context, "Could not read wav file. " + strErrorMessage, Toast.LENGTH_SHORT).show();
+                                }
+                                sd.sm.setInitialState(State.ReadyWithNoSample);
+                                sd.audioGraph.setPageValue(sd.audioGraph.new PageValue(1,0,0,0,100));
+                            }
+                        });
+
+                    }  else {
+                        Toast.makeText(context, "Source file does not exist", Toast.LENGTH_SHORT).show();
+                        sd.sm.setInitialState(State.ReadyWithNoSample);
+                        sd.audioGraph.setPageValue(sd.audioGraph.new PageValue(1,0,0,0,100));
                     }
-                } else {
-                    sd.audioGraph.setPageValue(sd.audioGraph.new PageValue(1,0,0,0,100));
                 }
-
             }
         });
         sd.audioGraph.setOnPageChangedListener(new AudioGraph.OnPageChangedListener() {
@@ -880,7 +891,8 @@ public class ActivityAudioRecorder extends ActionBarActivity {
         // Overwrite everything after play cursor with new data, appending everything to it after the end cursor
         if ( sd.fltPlayPercentBeforeRecording == 0) {
             // Play cursor is at start, so insert sample gets used as root sample
-            sd.audioSampleLeft = audioLib.new AudioSample(strAudioLeftFilenameWithoutExt, true);
+            sd.audioSampleLeft = audioLib.new AudioSample(strAudioLeftFilenameWithoutExt);
+            sd.audioSampleLeft.clear();
         } else {
             // Play cursor is later, so insert sample gets appended after cursor
             // Strip all to right of cursor
@@ -889,15 +901,21 @@ public class ActivityAudioRecorder extends ActionBarActivity {
             sd.audioSampleLeft.trimRight(lngPlayCursorStartInBytes);
         }
         // Use whatever is on the right side of the end cursor
-        if ( sd.audioGraph.isPercentEndOfFile(sd.fltEndPercentBeforeRecording)) {
-            // End cursor is at end, so insert sample does not get anything added at end
-            sd.audioSampleRight = audioLib.new AudioSample(strAudioRightFilenameWithoutExt, true);
+        if (sd.audioSampleCurrent.exists()) {
+            if ( sd.audioGraph.isPercentEndOfFile(sd.fltEndPercentBeforeRecording)) {
+                // End cursor is at end, so insert sample does not get anything added at end
+                sd.audioSampleRight = audioLib.new AudioSample(strAudioRightFilenameWithoutExt);
+                sd.audioSampleRight.clear();
+            } else {
+                // End cursor is not at end, so insert sample does get something added at end
+                // Get that "something"
+                long lngEndCursorPosInBytes = sd.audioGraph.percentToByte(sd.fltEndPercentBeforeRecording, sd.intSampleRate);
+                sd.audioSampleRight = audioLib.new AudioSample(strAudioRightFilenameWithoutExt, strAudioCurrentPlayFilenameWithoutExt);
+                sd.audioSampleRight.trimLeft(lngEndCursorPosInBytes);
+            }
         } else {
-            // End cursor is not at end, so insert sample does get something added at end
-            // Get that "something"
-            long lngPlayCursorEndInBytes = sd.audioGraph.percentToByte(sd.fltEndPercentBeforeRecording, sd.intSampleRate);
-            sd.audioSampleRight = audioLib.new AudioSample(strAudioRightFilenameWithoutExt, strAudioCurrentPlayFilenameWithoutExt);
-            sd.audioSampleRight.trimLeft(lngPlayCursorEndInBytes);
+            sd.audioSampleRight = audioLib.new AudioSample(strAudioRightFilenameWithoutExt);
+            sd.audioSampleRight.clear();
         }
 
         // Merge together
@@ -1109,7 +1127,12 @@ public class ActivityAudioRecorder extends ActionBarActivity {
             Toast.makeText(this, "File " + fileInput.toString() + " does not exist", Toast.LENGTH_LONG).show();
         }
         try {
-            wavFile.ReadFile(fileInput, sd.audioSampleCurrent);
+            wavFile.ReadFile(fileInput, sd.audioSampleCurrent, new WavFile.OnReadWriteCompleteListener() {
+                @Override
+                public void onComplete(boolean boolIsSuccess, String strErrorMessage) {
+
+                }
+            });
             sd.audioGraph.clearGraph();
             displayAudioSampleCurrent();
 
@@ -1125,10 +1148,15 @@ public class ActivityAudioRecorder extends ActionBarActivity {
             fileOutput.delete();
         }
         try {
-            wavFile.WriteFile(sd.audioSampleCurrent,sd.intSampleRate,fileOutput);
+            wavFile.WriteFile(sd.audioSampleCurrent,sd.intSampleRate,fileOutput, new WavFile.OnReadWriteCompleteListener() {
+                @Override
+                public void onComplete(boolean boolIsSuccess, String strErrorMessage) {
+
+                }
+            });
             Toast.makeText(this,"File exported",Toast.LENGTH_LONG).show();
 
-        } catch (IOException e) {
+        } catch (Exception e) {
             e.printStackTrace();
         }
     }

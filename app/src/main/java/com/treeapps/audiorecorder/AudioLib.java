@@ -46,34 +46,35 @@ public class AudioLib {
          * @param strFilenameWithoutExt
          * @throws IOException
          */
-        public AudioSample(String strFilenameWithoutExt, boolean boolClearFile) throws IOException {
+        public AudioSample(String strFilenameWithoutExt) throws IOException {
 
             this.filePathPcm = new File(strWorkFolderPath + "/" + strFilenameWithoutExt + ".pcm");
-            if (!boolClearFile) {
-                if (this.filePathPcm.exists()) {
-                    try {
-                        DataInputStream dis = new DataInputStream(new BufferedInputStream(new FileInputStream(filePathPcm)));
-                        if (!dis.markSupported()) {
-                            throw new RuntimeException("Mark/Reset not supported!");
-                        }
-                        lngSizePcmInShorts = getSizeInShorts(dis);
-                    } catch (FileNotFoundException e) {
-                        Log.e(TAG, "File not found when creating AudioSample", e);
-                        lngSizePcmInShorts = 0;
-                    } catch (IOException e) {
-                        Log.e(TAG, "IO exception when creating AudioSample", e);
-                        lngSizePcmInShorts = 0;
+
+            if (this.filePathPcm.exists()) {
+                try {
+                    DataInputStream dis = new DataInputStream(new BufferedInputStream(new FileInputStream(filePathPcm)));
+                    if (!dis.markSupported()) {
+                        throw new RuntimeException("Mark/Reset not supported!");
                     }
-                } else {
+                    lngSizePcmInShorts = getSizeInShorts(dis);
+                } catch (FileNotFoundException e) {
+                    Log.e(TAG, "File not found when creating AudioSample", e);
+                    lngSizePcmInShorts = 0;
+                } catch (IOException e) {
+                    Log.e(TAG, "IO exception when creating AudioSample", e);
                     lngSizePcmInShorts = 0;
                 }
             } else {
-                // Delete file
-                if (this.filePathPcm.exists()) {
-                    this.filePathPcm.delete();
-                }
                 lngSizePcmInShorts = 0;
             }
+
+        }
+
+        public void clear() {
+            if (this.filePathPcm.exists()) {
+                this.filePathPcm.delete();
+            }
+            lngSizePcmInShorts = 0;
         }
 
         public String getFullFilename() {
@@ -82,7 +83,7 @@ public class AudioLib {
 
         public int[] getGraphBuffer(long lngRmsStartFrame, int intRmsFramesAmount, int intRmsFrameSizeInSingles) throws IOException {
             if (!exists()) {
-                return null;
+                throw new IOException("CurrentFile does not exist");
             }
             long lngDataAmountInBytes = intRmsFramesAmount * (intRmsFrameSizeInSingles * 2);
             long lngStartByte = lngRmsStartFrame * intRmsFrameSizeInSingles * 2;
@@ -218,10 +219,6 @@ public class AudioLib {
 
         }
 
-        public void clear() {
-            filePathPcm.delete();
-            lngSizePcmInShorts = 0;
-        }
 
         public void updateFileSize() throws IOException {
             DataInputStream dis = new DataInputStream(new BufferedInputStream(new FileInputStream(filePathPcm)));
