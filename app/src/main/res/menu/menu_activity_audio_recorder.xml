@@ -11,6 +11,9 @@
         android:onClick="onMenuExportClicked"/>
     <item android:id="@+id/action_mail" android:title="@string/mnu_mail_audio_file"
         android:orderInCategory="3" app:showAsAction="never|withText" />
+    <item android:id="@+id/action_create_test_signal" android:title="@string/mnu_mail_create_test_signal"
+        android:orderInCategory="3" app:showAsAction="never|withText"
+        android:onClick="onMenuCreateTestSignalClicked"/>
     <item android:id="@+id/action_settings" android:title="@string/action_settings"
         android:orderInCategory="100" app:showAsAction="never|withText"
         android:onClick="onMenuSettingsClicked"/>

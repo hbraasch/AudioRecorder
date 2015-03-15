@@ -5,6 +5,7 @@ import android.util.Log;
 import java.io.BufferedInputStream;
 import java.io.BufferedOutputStream;
 import java.io.DataInputStream;
+import java.io.DataOutputStream;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileNotFoundException;
@@ -244,8 +245,24 @@ public class AudioLib {
             return this;
         }
 
-        public void removePart(long lngStartPositionInShort, long lngEndPositionInShort) {
 
+
+        public void createTestSignal() {
+            try {
+                final int MAX_VAL = 0xffff;
+                DataOutputStream dout = new DataOutputStream(new FileOutputStream(filePathPcm));
+                byte[] b = new byte[MAX_VAL];
+                for (int i = 0; i < MAX_VAL; i++) {
+                    b[i] = (byte)i;
+                }
+                dout.write(b,0,MAX_VAL);
+                dout.close();
+
+            } catch (FileNotFoundException e) {
+                e.printStackTrace();
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
         }
     }
 

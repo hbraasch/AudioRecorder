@@ -16,7 +16,8 @@
 
 package com.treeapps.audiorecorder;
 
-import android.media.AudioFormat;
+import android.content.Context;
+import android.os.AsyncTask;
 
 import java.io.BufferedOutputStream;
 import java.io.DataInputStream;
@@ -25,7 +26,6 @@ import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileOutputStream;
 import java.io.IOException;
-import java.io.ObjectOutputStream;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 
@@ -36,6 +36,9 @@ import java.nio.ByteOrder;
  */
 public class WavFile  {
 
+    private Context context;
+    private RobustProgressDialog robustProgressDialog;
+
     // Member variables containing frame info
     private int mFileSize;
     private int mSampleRate = 0;
@@ -43,8 +46,10 @@ public class WavFile  {
     // Member variables used during initialization
     private int mOffset;
 
-    public WavFile() {
+    public WavFile(Context context) {
+        this.context = context;
     }
+
 
 
 
@@ -56,10 +61,63 @@ public class WavFile  {
         return mSampleRate;
     }
 
-    public void ReadFile(File fileInputWav, AudioLib.AudioSample audioSample,
-                         OnReadWriteCompleteListener onReadWriteCompleteListener) {
+    private OnReadWriteCompleteListener onReadCompleteListener;
+    private OnReadWriteCompleteListener onWriteCompleteListener;
 
-        try {
+    public void ReadFileAsync(final File fileEditFile, final AudioLib.AudioSample audioSampleCurrent, final OnReadWriteCompleteListener onReadCompleteListener) {
+
+        this.onReadCompleteListener = onReadCompleteListener;
+
+        new AsyncTask<Void,Void,Void>() {
+            @Override
+            protected void onPreExecute() {
+                super.onPreExecute();
+                robustProgressDialog = new RobustProgressDialog(context);
+                robustProgressDialog.setMessage("Loading wav file... please wait");
+                if (!robustProgressDialog.isShowing()) {
+                    try {
+                        robustProgressDialog.show();
+                    } catch (Exception e) {
+                        e.printStackTrace();
+                    }
+                }
+            }
+
+            @Override
+            protected Void doInBackground(Void... params) {
+                try {
+                    ReadFile(fileEditFile, audioSampleCurrent);
+                    onReadCompleteListener.onComplete(true, "");
+                } catch (IOException e) {
+                    onReadCompleteListener.onComplete(false, e.getMessage());
+                    e.printStackTrace();
+                }
+                return null;
+            }
+
+            @Override
+            protected void onPostExecute(Void aVoid) {
+                super.onPostExecute(aVoid);
+                if (robustProgressDialog.isShowing()) {
+                    robustProgressDialog.dismiss();
+                }
+            }
+
+
+            @Override
+            protected void onCancelled() {
+                super.onCancelled();
+                if (robustProgressDialog.isShowing()) {
+                    robustProgressDialog.dismiss();
+                }
+                onReadCompleteListener.onComplete(false, "Cancelled by user");
+            }
+        }.execute(null,null,null);
+    }
+
+    public void ReadFile(File fileInputWav, AudioLib.AudioSample audioSample) throws IOException {
+
+
             mFileSize = (int)fileInputWav.length();
 
             int bufferSize = 16 * 1024;
@@ -69,8 +127,7 @@ public class WavFile  {
                     bufferSize));
 
             if (mFileSize < 128) {
-                onReadWriteCompleteListener.onComplete(false, "File too small to parse");
-                return;
+                throw new IOException("File too small to parse");
             }
 
             FileInputStream stream = new FileInputStream(fileInputWav);
@@ -85,8 +142,7 @@ public class WavFile  {
                     header[9] != 'A' ||
                     header[10] != 'V' ||
                     header[11] != 'E') {
-                onReadWriteCompleteListener.onComplete(false, "Not a WAV file");
-                return;
+                throw new IOException( "Not a WAV file");
             }
 
             int mChannels = 0;
@@ -107,8 +163,7 @@ public class WavFile  {
                         chunkHeader[2] == 't' &&
                         chunkHeader[3] == ' ') {
                     if (chunkLen < 16 || chunkLen > 1024) {
-                        onReadWriteCompleteListener.onComplete(false, "WAV file has bad fmt chunk");
-                        return;
+                        throw new IOException("WAV file has bad fmt chunk");
                     }
 
                     byte[] fmt = new byte[chunkLen];
@@ -128,8 +183,7 @@ public class WavFile  {
                                     ((0xff & fmt[4]));
 
                     if (format != 1) {
-                        onReadWriteCompleteListener.onComplete(false, "Unsupported WAV file encoding");
-                        return;
+                        throw new IOException("Unsupported WAV file encoding");
                     }
 
                 } else if (chunkHeader[0] == 'd' &&
@@ -137,8 +191,7 @@ public class WavFile  {
                         chunkHeader[2] == 't' &&
                         chunkHeader[3] == 'a') {
                     if (mChannels == 0 || mSampleRate == 0) {
-                        onReadWriteCompleteListener.onComplete(false, "Bad WAV file: data chunk before fmt chunk");
-                        return;
+                        throw new IOException("Bad WAV file: data chunk before fmt chunk");
                     }
 
                     int frameSamples = (mSampleRate * mChannels) / 50;
@@ -157,9 +210,10 @@ public class WavFile  {
                         stream.read(oneFrame, 0, oneFrameBytes);
 
                         short sFirstChannelData;
-                        for (int j = 1; j < oneFrameBytes; j += 2 * mChannels) {
-                            sFirstChannelData = oneFrame[j];
-                            writeShortLE(dout, sFirstChannelData);
+                        for (int j = 0; j < oneFrameBytes; j += 2 * mChannels) {
+                            // Write big endian
+                            sFirstChannelData = (short)((oneFrame[j] & 0xFF) + ((oneFrame[j+1] & 0xFF) << 8));
+                            dout.writeShort(sFirstChannelData);
                         }
 
                         i += oneFrameBytes;
@@ -172,20 +226,68 @@ public class WavFile  {
             }
             stream.close();
             dout.close();
-            onReadWriteCompleteListener.onComplete(true, "");
-        } catch (IOException e) {
-            onReadWriteCompleteListener.onComplete(false, e.getMessage());
-            return;
-        }
+
     }
 
-    public static void writeShortLE(DataOutputStream out, short value) throws IOException {
-        out.writeByte(value & 0xFF);
+
+    public static void writeShortBE(DataOutputStream out, short value) throws IOException {
         out.writeByte((value >> 8) & 0xFF);
+        out.writeByte(value & 0xFF);
     }
 
-    public void WriteFile(AudioLib.AudioSample audioSample, long lngSampleRate, File fileOutputWav,
-                          OnReadWriteCompleteListener onReadWriteCompleteListener) {
+    public void WriteFileAsync(final AudioLib.AudioSample audioSample, final long lngSampleRate, final File fileOutputWav,
+                          final OnReadWriteCompleteListener onWriteCompleteListener) {
+
+        this.onWriteCompleteListener = onWriteCompleteListener;
+
+        new AsyncTask<Void,Void,Void>() {
+            @Override
+            protected void onPreExecute() {
+                super.onPreExecute();
+                robustProgressDialog = new RobustProgressDialog(context);
+                robustProgressDialog.setMessage("Saving wav file... please wait");
+                if (!robustProgressDialog.isShowing()) {
+                    try {
+                        robustProgressDialog.show();
+                    } catch (Exception e) {
+                        e.printStackTrace();
+                    }
+                }
+            }
+
+            @Override
+            protected Void doInBackground(Void... params) {
+                try {
+                    WriteFile(audioSample, lngSampleRate, fileOutputWav);
+                    onWriteCompleteListener.onComplete(true, "");
+                } catch (IOException e) {
+                    onWriteCompleteListener.onComplete(false, e.getMessage());
+                    e.printStackTrace();
+                }
+                return null;
+            }
+
+            @Override
+            protected void onPostExecute(Void aVoid) {
+                super.onPostExecute(aVoid);
+                if (robustProgressDialog.isShowing()) {
+                    robustProgressDialog.dismiss();
+                }
+            }
+
+
+            @Override
+            protected void onCancelled() {
+                super.onCancelled();
+                if (robustProgressDialog.isShowing()) {
+                    robustProgressDialog.dismiss();
+                }
+                onReadCompleteListener.onComplete(false, "Cancelled by user");
+            }
+        }.execute(null,null,null);
+    }
+
+    public void WriteFile(AudioLib.AudioSample audioSample, long lngSampleRate, File fileOutputWav) throws IOException {
 
         try {
             fileOutputWav.createNewFile();
@@ -266,10 +368,8 @@ public class WavFile  {
             in.close();
             dout.close();
             out.close();
-            onReadWriteCompleteListener.onComplete(true, "");
         } catch (IOException e) {
-            onReadWriteCompleteListener.onComplete(false, e.getMessage());
-            return;
+            throw new IOException(e.getMessage());
         }
 
     }
@@ -281,5 +381,18 @@ public class WavFile  {
         // to turn bytes to shorts as either big endian or little endian.
         ByteBuffer.wrap(bytes).order(ByteOrder.LITTLE_ENDIAN).asShortBuffer().get(shorts);
         return shorts;
+    }
+
+    // Convert short to byte
+    private byte[] short2byte(short[] sData) {
+        int intArraySize = sData.length;
+        byte[] bytes = new byte[intArraySize * 2];
+        for (int i = 0; i < intArraySize; i++) {
+            bytes[i * 2] = (byte) (sData[i] & 0x00FF);
+            bytes[(i * 2) + 1] = (byte) (sData[i] >> 8);
+            sData[i] = 0;
+        }
+        return bytes;
+
     }
 };

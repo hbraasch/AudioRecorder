@@ -364,6 +364,12 @@ public class AudioGraph extends ImageView {
         paintGraphFill.setColor(Color.parseColor(GRAPH_FILL_COLOR));
         paintGraphFill.setStyle(Paint.Style.FILL);
 
+        paintWave = new Paint();
+        paintWave.setStrokeWidth(dpToPx(2));
+        paintWave.setAntiAlias(true);
+        paintWave.setColor(Color.BLUE);
+        paintWave.setStyle(Paint.Style.STROKE);
+
         // Calculate item dimensions
         paintTime = paintDefault;
 
@@ -839,7 +845,7 @@ public class AudioGraph extends ImageView {
                 floatGraphPoints[6] = rectGraph.left + getRmsFramePositionInPx(i + 1);
                 floatGraphPoints[7] = (rectGraph.top  + intGraphHalfHeight) + (fltGraphNormalizedValues[i + 1]  * intGraphHalfHeight) / 100;
 
-                canvas.drawLines(floatGraphPoints, paintDefault);
+                canvas.drawLines(floatGraphPoints, paintWave);
             }
         }
 

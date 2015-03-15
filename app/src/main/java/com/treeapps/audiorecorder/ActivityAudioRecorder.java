@@ -246,10 +246,25 @@ public class ActivityAudioRecorder extends ActionBarActivity {
         builder.setPositiveButton("Save", new DialogInterface.OnClickListener() {
             @Override
             public void onClick(DialogInterface dialogInterface, int i) {
-                sd.audioSampleCurrent.copyTo(sd.strAudioEditFullFilename);
-                setResult(RESULT_OK, getIntent());
-                ActivityAudioRecorder.this.finish();
-                ActivityAudioRecorder.super.onBackPressed();
+                File fileEditFile = new File(sd.strAudioEditFullFilename);
+                WavFile wavFile = new WavFile(context);
+                wavFile.WriteFileAsync(sd.audioSampleCurrent, sd.intSampleRate, fileEditFile, new WavFile.OnReadWriteCompleteListener() {
+                    @Override
+                    public void onComplete(final boolean boolIsSuccess, final String strErrorMessage) {
+                        runOnUiThread( new Runnable() {
+                            @Override
+                            public void run() {
+                                if (boolIsSuccess) {
+                                    setResult(RESULT_OK, getIntent());
+                                    ActivityAudioRecorder.this.finish();
+                                    ActivityAudioRecorder.super.onBackPressed();
+                                } else {
+                                    Toast.makeText(context,strErrorMessage, Toast.LENGTH_LONG).show();
+                                }
+                            }
+                        });
+                    }
+                });
             }
         });
         builder.setNeutralButton("Exit", new DialogInterface.OnClickListener() {
@@ -489,25 +504,30 @@ public class ActivityAudioRecorder extends ActionBarActivity {
                 if (!sd.strAudioEditFullFilename.isEmpty()) {
                     File fileEditFile = new File(sd.strAudioEditFullFilename);
                     if (fileEditFile.exists()) {
-                        final WavFile wavFile = new WavFile();
-                        wavFile.ReadFile(fileEditFile, sd.audioSampleCurrent,new WavFile.OnReadWriteCompleteListener() {
+                        final WavFile wavFile = new WavFile(context);
+                        wavFile.ReadFileAsync(fileEditFile, sd.audioSampleCurrent, new WavFile.OnReadWriteCompleteListener() {
                             @Override
-                            public void onComplete(boolean boolIsSuccess, String strErrorMessage) {
-                                if (boolIsSuccess) {
-                                    try {
-                                        sd.intSampleRate = wavFile.getSampleRate();
-                                        sd.audioSampleCurrent = audioLib.new AudioSample(strAudioCurrentPlayFilenameWithoutExt);
-                                        displayAudioSampleCurrent();
-                                        sd.sm.setInitialState(State.ReadyWithSample);
-                                        return;
-                                    } catch (Exception e) {
-                                        Toast.makeText(context, "Could not read wav file. " + e.getMessage(), Toast.LENGTH_SHORT).show();
+                            public void onComplete(final boolean boolIsSuccess, final String strErrorMessage) {
+                                runOnUiThread(new Runnable() {
+                                    @Override
+                                    public void run() {
+                                        if (boolIsSuccess) {
+                                            try {
+                                                sd.intSampleRate = wavFile.getSampleRate();
+                                                sd.audioSampleCurrent = audioLib.new AudioSample(strAudioCurrentPlayFilenameWithoutExt);
+                                                displayAudioSampleCurrent();
+                                                sd.sm.setInitialState(State.ReadyWithSample);
+                                                return;
+                                            } catch (Exception e) {
+                                                Toast.makeText(context, "Could not read wav file. " + e.getMessage(), Toast.LENGTH_SHORT).show();
+                                            }
+                                        } else {
+                                            Toast.makeText(context, "Could not read wav file. " + strErrorMessage, Toast.LENGTH_SHORT).show();
+                                        }
+                                        sd.sm.setInitialState(State.ReadyWithNoSample);
+                                        sd.audioGraph.setPageValue(sd.audioGraph.new PageValue(1, 0, 0, 0, 100));
                                     }
-                                } else {
-                                    Toast.makeText(context, "Could not read wav file. " + strErrorMessage, Toast.LENGTH_SHORT).show();
-                                }
-                                sd.sm.setInitialState(State.ReadyWithNoSample);
-                                sd.audioGraph.setPageValue(sd.audioGraph.new PageValue(1,0,0,0,100));
+                                });
                             }
                         });
 
@@ -1121,18 +1141,13 @@ public class ActivityAudioRecorder extends ActionBarActivity {
      * @param item
      */
     public void onMenuImportClicked(MenuItem item) {
-        WavFile wavFile = new WavFile();
+        WavFile wavFile = new WavFile(this);
         File fileInput = new File( sd.strWorkFolderFullPath + "/WavTestFile.wav");
         if (!fileInput.exists()) {
             Toast.makeText(this, "File " + fileInput.toString() + " does not exist", Toast.LENGTH_LONG).show();
         }
         try {
-            wavFile.ReadFile(fileInput, sd.audioSampleCurrent, new WavFile.OnReadWriteCompleteListener() {
-                @Override
-                public void onComplete(boolean boolIsSuccess, String strErrorMessage) {
-
-                }
-            });
+            wavFile.ReadFile(fileInput, sd.audioSampleCurrent);
             sd.audioGraph.clearGraph();
             displayAudioSampleCurrent();
 
@@ -1142,18 +1157,13 @@ public class ActivityAudioRecorder extends ActionBarActivity {
     }
 
     public void onMenuExportClicked(MenuItem item) {
-        WavFile wavFile = new WavFile();
+        WavFile wavFile = new WavFile(this);
         File fileOutput = new File( sd.strWorkFolderFullPath + "/WavTestFileOut.wav");
         if (fileOutput.exists()) {
             fileOutput.delete();
         }
         try {
-            wavFile.WriteFile(sd.audioSampleCurrent,sd.intSampleRate,fileOutput, new WavFile.OnReadWriteCompleteListener() {
-                @Override
-                public void onComplete(boolean boolIsSuccess, String strErrorMessage) {
-
-                }
-            });
+            wavFile.WriteFile(sd.audioSampleCurrent,sd.intSampleRate,fileOutput);
             Toast.makeText(this,"File exported",Toast.LENGTH_LONG).show();
 
         } catch (Exception e) {
@@ -1164,6 +1174,17 @@ public class ActivityAudioRecorder extends ActionBarActivity {
     public void onMenuSettingsClicked(MenuItem item) {
         Intent intent = new Intent(this,ActivityPreferences.class);
         startActivityForResult(intent, GET_PREFERENCES);
+    }
+
+    public void onMenuCreateTestSignalClicked(MenuItem item) {
+        sd.audioSampleCurrent.createTestSignal();
+        sd.audioGraph.clearGraph();
+        try {
+            displayAudioSampleCurrent();
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+
     }
 
     @Override
