@@ -22,10 +22,12 @@
         </activity>
         <activity
             android:name=".ActivityAudioRecorder"
+            android:configChanges="screenSize|orientation"
             android:label="@string/title_activity_activity_audio_recorder" >
         </activity>
         <activity
             android:name=".ActivityPreferences"
+            android:configChanges="screenSize|orientation"
             android:label="@string/title_activity_activity_preferences" >
         </activity>
     </application>

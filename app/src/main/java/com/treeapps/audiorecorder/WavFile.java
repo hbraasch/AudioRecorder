@@ -117,6 +117,7 @@ public class WavFile  {
 
     public void ReadFile(File fileInputWav, AudioLib.AudioSample audioSample) throws IOException {
 
+            audioSample.lngSizePcmInShorts = 0;
 
             mFileSize = (int)fileInputWav.length();
 
@@ -125,10 +126,6 @@ public class WavFile  {
             DataOutputStream dout = new DataOutputStream(new BufferedOutputStream(
                     new FileOutputStream(audioSample.filePathPcm),
                     bufferSize));
-
-            if (mFileSize < 128) {
-                throw new IOException("File too small to parse");
-            }
 
             FileInputStream stream = new FileInputStream(fileInputWav);
             byte[] header = new byte[12];
@@ -146,6 +143,7 @@ public class WavFile  {
             }
 
             int mChannels = 0;
+            long lngSizePcmInShorts = 0;
 
             while (mOffset + 8 <= mFileSize) {
                 byte[] chunkHeader = new byte[8];
@@ -214,6 +212,7 @@ public class WavFile  {
                             // Write big endian
                             sFirstChannelData = (short)((oneFrame[j] & 0xFF) + ((oneFrame[j+1] & 0xFF) << 8));
                             dout.writeShort(sFirstChannelData);
+                            lngSizePcmInShorts += 1;
                         }
 
                         i += oneFrameBytes;
@@ -224,6 +223,7 @@ public class WavFile  {
                     stream.skip(chunkLen);
                 }
             }
+            audioSample.lngSizePcmInShorts = lngSizePcmInShorts;
             stream.close();
             dout.close();
 
@@ -291,7 +291,7 @@ public class WavFile  {
 
         try {
             fileOutputWav.createNewFile();
-            FileInputStream in = new FileInputStream(audioSample.filePathPcm);
+
             int bufferSize = 16 * 1024;
             FileOutputStream out = new FileOutputStream(fileOutputWav);
             DataOutputStream dout = new DataOutputStream(new BufferedOutputStream(
@@ -354,18 +354,20 @@ public class WavFile  {
             header[43] = (byte) ((totalAudioLen >> 24) & 0xff);
             dout.write(header, 0, 44);
 
-            DataInputStream dis = new DataInputStream(in);
-            byte[] buffer = new byte[mFrameBytes];
-            int i = 0;
-            while((i = dis.read(buffer, 0, mFrameBytes)) > -1){
-                // Send to wav file
-                short[] s = byte2short(buffer);
-                for (i = 0; i < s.length; i++) {
-                    dout.writeShort(s[i]);
+            if (audioSample.exists()) {
+                FileInputStream in = new FileInputStream(audioSample.filePathPcm);
+                DataInputStream dis = new DataInputStream(in);
+                byte[] buffer = new byte[mFrameBytes];
+                int i = 0;
+                while((i = dis.read(buffer, 0, mFrameBytes)) > -1){
+                    // Send to wav file
+                    short[] s = byte2short(buffer);
+                    for (i = 0; i < s.length; i++) {
+                        dout.writeShort(s[i]);
+                    }
                 }
+                in.close();
             }
-
-            in.close();
             dout.close();
             out.close();
         } catch (IOException e) {

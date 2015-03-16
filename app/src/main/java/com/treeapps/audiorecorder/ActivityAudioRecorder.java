@@ -21,6 +21,7 @@ import android.util.Log;
 import android.view.Menu;
 import android.view.MenuItem;
 import android.view.View;
+import android.view.WindowManager;
 import android.widget.EditText;
 import android.widget.ImageButton;
 import android.widget.Toast;
@@ -217,6 +218,10 @@ public class ActivityAudioRecorder extends ActionBarActivity {
         context = this;
         FragmentManager fragmentManager = getFragmentManager();
         sd = (SessionDataFragment) fragmentManager.findFragmentByTag("SESSION_DATA");
+        if (sd == null) {
+            sd = new SessionDataFragment();
+            fragmentManager.beginTransaction().add(sd, "SESSION_DATA").commit();
+        }
         audioLib = new AudioLib(sd.strWorkFolderFullPath);
     }
 
@@ -492,14 +497,17 @@ public class ActivityAudioRecorder extends ActionBarActivity {
 
 
     void setupGui() {
+        // Ensure soft keyboard hides unless required
+        getWindow().setSoftInputMode(
+                WindowManager.LayoutParams.SOFT_INPUT_STATE_ALWAYS_HIDDEN
+        );
+
         // Audio display
         sd.audioGraph = (AudioGraph)findViewById(R.id.audioGraph);
         sd.audioGraph.setOnInitCompleteListener(new AudioGraph.OnInitCompleteListener() {
             @Override
             public void onComplete() {
-                sd.audioGraph.setPageSizeInMs(GRAPH_PAGE_SIZE_IN_MS);
                 sd.audioGraph.clearGraph();
-
                 // Get edit file if passed on via intent
                 if (!sd.strAudioEditFullFilename.isEmpty()) {
                     File fileEditFile = new File(sd.strAudioEditFullFilename);
@@ -514,7 +522,6 @@ public class ActivityAudioRecorder extends ActionBarActivity {
                                         if (boolIsSuccess) {
                                             try {
                                                 sd.intSampleRate = wavFile.getSampleRate();
-                                                sd.audioSampleCurrent = audioLib.new AudioSample(strAudioCurrentPlayFilenameWithoutExt);
                                                 displayAudioSampleCurrent();
                                                 sd.sm.setInitialState(State.ReadyWithSample);
                                                 return;
@@ -539,11 +546,32 @@ public class ActivityAudioRecorder extends ActionBarActivity {
                 }
             }
         });
-        sd.audioGraph.setOnPageChangedListener(new AudioGraph.OnPageChangedListener() {
+
+        sd.audioGraph.setOnScreenSizeChangedListener(new AudioGraph.OnScreenSizeChangedListener() {
             @Override
-            public void onPageChanged(AudioGraph.PageValue pageValue) {
+            public void onChanged(AudioGraph.PageValue pageValue) {
                 if (sd.audioSampleCurrent.exists()) {
                     try {
+                        sd.audioGraph.setPageSizeInMs(GRAPH_PAGE_SIZE_IN_MS); // This is done here because orientation can change any time
+                        int intRmsFrameSizeInShorts = sd.audioGraph.getOptimalDataSampleBufferSizeInShorts(sd.intSampleRate);
+                        int intPageSizeInRmsFrames = sd.audioGraph.getPageSizeInRmsFrames();
+                        long lngStartRmsFrame = (long) ((pageValue.fltPageNum -1) * intPageSizeInRmsFrames);
+                        int[] intGraphBuffer = sd.audioSampleCurrent.getGraphBuffer(lngStartRmsFrame, intPageSizeInRmsFrames, intRmsFrameSizeInShorts);
+                        sd.audioGraph.updateGraph(intGraphBuffer);
+                        sd.audioGraph.setPageValue(pageValue);
+                    } catch (Exception e) {
+                        Log.e(TAG, "Could not get graph values", e);
+                    }
+                }
+            }
+        });
+
+        sd.audioGraph.setOnPageChangedListener(new AudioGraph.OnPageChangedListener() {
+            @Override
+            public void onChanged(AudioGraph.PageValue pageValue) {
+                if (sd.audioSampleCurrent.exists()) {
+                    try {
+                        sd.audioGraph.setPageSizeInMs(GRAPH_PAGE_SIZE_IN_MS); // This is done here because orientation can change any time
                         int intRmsFrameSizeInShorts = sd.audioGraph.getOptimalDataSampleBufferSizeInShorts(sd.intSampleRate);
                         int intPageSizeInRmsFrames = sd.audioGraph.getPageSizeInRmsFrames();
                         long lngStartRmsFrame = (long) ((pageValue.fltPageNum -1) * intPageSizeInRmsFrames);
@@ -736,6 +764,7 @@ public class ActivityAudioRecorder extends ActionBarActivity {
     }
 
     private void displayAudioSampleCurrent() throws IOException {
+        sd.audioGraph.setPageSizeInMs(GRAPH_PAGE_SIZE_IN_MS); // This is done here because orientation can change any time
         int intRmsFrameSizeInShorts = sd.audioGraph.getOptimalDataSampleBufferSizeInShorts(sd.intSampleRate);
         int intPageSizeInRmsFrames = sd.audioGraph.getPageSizeInRmsFrames();
         long lngStartRmsFrame = 0;
