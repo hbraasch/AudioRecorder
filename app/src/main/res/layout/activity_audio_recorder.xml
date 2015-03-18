@@ -37,7 +37,7 @@
         android:id="@+id/linearLayoutButtons"
         android:layout_below="@+id/audioGraph"
         android:gravity="center_horizontal"
-        android:layout_marginTop="52dp">
+        android:layout_marginTop="@dimen/activity_vertical_margin">
 
         <ImageButton
             android:layout_width="wrap_content"

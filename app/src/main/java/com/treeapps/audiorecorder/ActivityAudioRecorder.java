@@ -312,6 +312,9 @@ public class ActivityAudioRecorder extends ActionBarActivity {
                         buttonSkipToStart.setVisibility(View.GONE);
                         buttonSkipToEnd.setVisibility(View.GONE);
                         buttonDelete.setVisibility(View.GONE);
+
+                        // Cursor enable/disable
+                        sd.audioGraph.enablePlayCursor(true);
                     }
                 });
 
@@ -337,6 +340,9 @@ public class ActivityAudioRecorder extends ActionBarActivity {
                         buttonSkipToStart.setVisibility(View.VISIBLE);
                         buttonSkipToEnd.setVisibility(View.VISIBLE);
                         buttonDelete.setVisibility(View.VISIBLE);
+
+                        // Cursor enable/disable
+                        sd.audioGraph.enablePlayCursor(true);
                     }
                 });
                 // Action
@@ -359,6 +365,9 @@ public class ActivityAudioRecorder extends ActionBarActivity {
                         buttonSkipToStart.setVisibility(View.GONE);
                         buttonSkipToEnd.setVisibility(View.GONE);
                         buttonDelete.setVisibility(View.GONE);
+
+                        // Cursor enable/disable
+                        sd.audioGraph.enablePlayCursor(false);
 
                         // Action
                         startPlay(new OnPlayComplete() {
@@ -592,7 +601,7 @@ public class ActivityAudioRecorder extends ActionBarActivity {
 
                     int intRmsFrameSizeInShorts = sd.audioGraph.getOptimalDataSampleBufferSizeInShorts(sd.intSampleRate);
                     int intPageSizeInRmsFrames = sd.audioGraph.getPageSizeInRmsFrames();
-                    long lngStartRmsFrame = sd.audioGraph.percentToRmsFrame(fltPercent, sd.intSampleRate);
+                    long lngStartRmsFrame = sd.audioGraph.percentToRmsFrame(fltPercent, sd.audioSampleCurrent.lngSizePcmInShorts, sd.intSampleRate);
                     intGraphBuffer = sd.audioSampleCurrent.getGraphBuffer(lngStartRmsFrame, intPageSizeInRmsFrames, intRmsFrameSizeInShorts);
 
                 } catch (IOException e) {
@@ -720,8 +729,8 @@ public class ActivityAudioRecorder extends ActionBarActivity {
                         try {
                             // Merge shortened file
                             AudioGraph.PageValue pageValue = sd.audioGraph.getPageValue();
-                            long lngStartCursorPositionInShort = sd.audioGraph.percentToShort(pageValue.fltStartPercent, sd.intSampleRate);
-                            long lngEndCursorPositionInShort = sd.audioGraph.percentToShort(pageValue.fltEndPercent, sd.intSampleRate);
+                            long lngStartCursorPositionInShort = sd.audioGraph.percentToShort(pageValue.fltStartPercent, sd.audioSampleCurrent.lngSizePcmInShorts, sd.intSampleRate);
+                            long lngEndCursorPositionInShort = sd.audioGraph.percentToShort(pageValue.fltEndPercent, sd.audioSampleCurrent.lngSizePcmInShorts, sd.intSampleRate);
                             sd.audioSampleLeft = audioLib.new AudioSample(strAudioLeftFilenameWithoutExt, strAudioCurrentPlayFilenameWithoutExt);
                             sd.audioSampleLeft.trimRight(lngStartCursorPositionInShort*2);
                             sd.audioSampleRight = audioLib.new AudioSample(strAudioRightFilenameWithoutExt, strAudioCurrentPlayFilenameWithoutExt);
@@ -945,7 +954,7 @@ public class ActivityAudioRecorder extends ActionBarActivity {
         } else {
             // Play cursor is later, so insert sample gets appended after cursor
             // Strip all to right of cursor
-            long lngPlayCursorStartInBytes = sd.audioGraph.percentToByte(sd.fltPlayPercentBeforeRecording, sd.intSampleRate);
+            long lngPlayCursorStartInBytes = sd.audioGraph.percentToByte(sd.fltPlayPercentBeforeRecording, sd.audioSampleCurrent.lngSizePcmInShorts, sd.intSampleRate);
             sd.audioSampleLeft = audioLib.new AudioSample(strAudioLeftFilenameWithoutExt, strAudioCurrentPlayFilenameWithoutExt);
             sd.audioSampleLeft.trimRight(lngPlayCursorStartInBytes);
         }
@@ -958,7 +967,7 @@ public class ActivityAudioRecorder extends ActionBarActivity {
             } else {
                 // End cursor is not at end, so insert sample does get something added at end
                 // Get that "something"
-                long lngEndCursorPosInBytes = sd.audioGraph.percentToByte(sd.fltEndPercentBeforeRecording, sd.intSampleRate);
+                long lngEndCursorPosInBytes = sd.audioGraph.percentToByte(sd.fltEndPercentBeforeRecording, sd.audioSampleCurrent.lngSizePcmInShorts, sd.intSampleRate);
                 sd.audioSampleRight = audioLib.new AudioSample(strAudioRightFilenameWithoutExt, strAudioCurrentPlayFilenameWithoutExt);
                 sd.audioSampleRight.trimLeft(lngEndCursorPosInBytes);
             }
@@ -1067,7 +1076,7 @@ public class ActivityAudioRecorder extends ActionBarActivity {
 	public void conductPlayBack(PlayBackAsyncTask.ProgressProxy progressProxy){
 
         // Determine where to start in file
-        int intSkipPositionInBytes = (int) sd.audioGraph.percentToByte(sd.audioGraph.getPageValue().fltPlayPercent, sd.intSampleRate);
+        int intSkipPositionInBytes = (int) sd.audioGraph.percentToByte(sd.audioGraph.getPageValue().fltPlayPercent, sd.audioSampleCurrent.lngSizePcmInShorts, sd.intSampleRate);
 
 	    int minBufferSize = AudioTrack.getMinBufferSize(sd.intSampleRate,
                 AudioFormat.CHANNEL_OUT_MONO, AudioFormat.ENCODING_PCM_16BIT);
