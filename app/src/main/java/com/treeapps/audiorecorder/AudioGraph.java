@@ -303,10 +303,14 @@ public class AudioGraph extends ImageView {
 
     public boolean isPercentEndOfFile(float fltPercent) {
         float fltDataDataAmountAsPercent = getDataAmountAsPercent();
-        if (fltPercent >= fltDataDataAmountAsPercent) {
+        if (Math.abs(fltPercent - fltDataDataAmountAsPercent) < 0.1) {
             return true;
         }
         return false;
+    }
+
+    public boolean isPlayCursorAtEndOfFile() {
+        return isPercentEndOfFile(pageValue.fltPlayPercent);
     }
 
     public float getValueAsPercentInPage(float fltValueAsPercentInTimeline) {
@@ -342,10 +346,7 @@ public class AudioGraph extends ImageView {
     public PageValue updatePageValueToDisplayEndPage(PageValue pageValueOrig, long lngDataAmountInShorts, int intAudioSampleRate) {
         PageValue pageValueNew = pageValueOrig.copy();
         if (pageValue.lngDataAmountInRmsFrames != 0) {
-            long lngTimelineLenInRmsFrames = intPageAmount * intPageSizeInRmsFrames;
-            int intRmsFrameSizeInShorts = getOptimalDataSampleBufferSizeInShorts(intAudioSampleRate);
-            long lngDataAmountInRmsFrames = lngDataAmountInShorts/intRmsFrameSizeInShorts;
-            pageValueNew.fltPlayPercent = ((float)lngDataAmountInRmsFrames/lngTimelineLenInRmsFrames) * 100.0f;
+            pageValueNew.fltPlayPercent = getDataAmountAsPercent();
             pageValueNew.fltPageNum = intPageAmount;
         } else {
             pageValueNew.fltPlayPercent = 100;
@@ -610,10 +611,13 @@ public class AudioGraph extends ImageView {
         if (intAfterEndCursorRawValues != null) {
             if (bufferNewCursorPositions.intEndPosition != -1) {
                 // Play cursor is on current displayed page, now to add the post-end cursor data
-                intDisplayValues = new int[intPageSizeInRmsFrames];
-                int intPostEndCursorDataAmount = intPageSizeInRmsFrames - bufferNewCursorPositions.intEndPosition;
-                System.arraycopy(intGraphRawValues, 0, intDisplayValues, 0, intGraphRawValues.length);
-                System.arraycopy(intAfterEndCursorRawValues, 0, intDisplayValues, bufferNewCursorPositions.intEndPosition, intPostEndCursorDataAmount);
+                if (!bufferNewCursorPositions.boolIsEndPositionAtAudioEnd) {
+                    // Only need to add post-end if cursor not at the end
+                    intDisplayValues = new int[intPageSizeInRmsFrames];
+                    int intPostEndCursorDataAmount = intPageSizeInRmsFrames - bufferNewCursorPositions.intEndPosition;
+                    System.arraycopy(intGraphRawValues, 0, intDisplayValues, 0, intGraphRawValues.length);
+                    System.arraycopy(intAfterEndCursorRawValues, 0, intDisplayValues, bufferNewCursorPositions.intEndPosition, intPostEndCursorDataAmount);
+                }
             }
         }
 
@@ -644,7 +648,7 @@ public class AudioGraph extends ImageView {
     public class BufferCursorPositions {
         public int intPlayPosition;
         public int intEndPosition;
-
+        public boolean boolIsEndPositionAtAudioEnd;
     }
 
     /**
@@ -687,6 +691,12 @@ public class AudioGraph extends ImageView {
         } else if (fltEndPositionInTimeline > fltPageHorEndPositionInTimeline){
             // Selected position is outside display page
             bufferPositions.intEndPosition = -1;
+        }
+
+        if (Math.abs(fltEndPositionInTimeline - currentPageValue.lngDataAmountInRmsFrames) < 2) {
+            bufferPositions.boolIsEndPositionAtAudioEnd = true;
+        } else {
+            bufferPositions.boolIsEndPositionAtAudioEnd = false;
         }
         return bufferPositions;
     }

@@ -45,6 +45,7 @@ public class StateMachine <S extends Enum<S>, E extends Enum<E>> {
         for (EventDef eventDef: eventDefs) {
             if (eventDef.event.equals(event)) {
                 state = eventDef.eventTransition.nextState(event,state);
+                if (state == null) return; // To allow triggering another event within an event
                 boolIsEventFound =  true;
                 break;
             }

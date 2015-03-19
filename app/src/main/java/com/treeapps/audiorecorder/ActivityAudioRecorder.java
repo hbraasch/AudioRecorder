@@ -41,6 +41,8 @@ import java.util.ArrayList;
 
 import com.treeapps.audiorecorder.AudioLib.AudioSample;
 
+import static com.treeapps.audiorecorder.ActivityAudioRecorder.State.*;
+import static com.treeapps.audiorecorder.ActivityAudioRecorder.State.ReadyWithNoSample;
 
 
 public class ActivityAudioRecorder extends ActionBarActivity {
@@ -63,7 +65,7 @@ public class ActivityAudioRecorder extends ActionBarActivity {
     }
 
     public enum Event {
-        RecordPressed, RecordStopPressed, RecordError, PlayPressed, PlayStopPressed, PlayError, ClearAll
+        RecordPressed, RecordStopPressed, RecordError, PlayPressed, PlayStopPressed, PlayError, ClearAll, BackPressed
     }
 
     String strAudioCurrentPlayFilenameWithoutExt = "audiocurrent";
@@ -92,9 +94,8 @@ public class ActivityAudioRecorder extends ActionBarActivity {
         public Context objContext;
         public StateMachine<State, Event> sm;
 
-        public boolean isPaused = false;
+        AudioTrack audioTrack;
 
-        public AudioRecord audioRecord = null;
         public boolean isRecording = false;
         public RecordAsyncTask recordAsyncTask = null;
 
@@ -214,6 +215,8 @@ public class ActivityAudioRecorder extends ActionBarActivity {
         LoadSession();
     }
 
+
+
     void LoadSession() {
         context = this;
         FragmentManager fragmentManager = getFragmentManager();
@@ -243,61 +246,14 @@ public class ActivityAudioRecorder extends ActionBarActivity {
     }
 
 
-    @Override
-    public void onBackPressed() {
 
-        AlertDialog.Builder builder = new AlertDialog.Builder(this);
-        builder.setTitle("Do you want to save before exiting?");
-        builder.setPositiveButton("Save", new DialogInterface.OnClickListener() {
-            @Override
-            public void onClick(DialogInterface dialogInterface, int i) {
-                File fileEditFile = new File(sd.strAudioEditFullFilename);
-                WavFile wavFile = new WavFile(context);
-                wavFile.WriteFileAsync(sd.audioSampleCurrent, sd.intSampleRate, fileEditFile, new WavFile.OnReadWriteCompleteListener() {
-                    @Override
-                    public void onComplete(final boolean boolIsSuccess, final String strErrorMessage) {
-                        runOnUiThread( new Runnable() {
-                            @Override
-                            public void run() {
-                                if (boolIsSuccess) {
-                                    setResult(RESULT_OK, getIntent());
-                                    ActivityAudioRecorder.this.finish();
-                                    ActivityAudioRecorder.super.onBackPressed();
-                                } else {
-                                    Toast.makeText(context,strErrorMessage, Toast.LENGTH_LONG).show();
-                                }
-                            }
-                        });
-                    }
-                });
-            }
-        });
-        builder.setNeutralButton("Exit", new DialogInterface.OnClickListener() {
-
-            @Override
-            public void onClick(DialogInterface dialogInterface, int i) {
-                setResult(RESULT_CANCELED, getIntent());
-                ActivityAudioRecorder.this.finish();
-                ActivityAudioRecorder.super.onBackPressed();
-            }
-        });
-
-        builder.setNegativeButton("Cancel", new DialogInterface.OnClickListener() {
-
-            @Override
-            public void onClick(DialogInterface dialog, int which) {
-                // Do nothing
-            }
-        });
-        builder.show();
-    }
 
     void setupStateMachine() {
 
         // What happens when entering each state
         sd.sm = new StateMachine<State, Event>();
 
-        sd.sm.onEnteringState(State.ReadyWithNoSample, new StateMachine.StateTransition() {
+        sd.sm.onEnteringState(ReadyWithNoSample, new StateMachine.StateTransition() {
             @Override
             public void onState(Enum newState, Enum prevState, Enum triggerEvent) {
                 Log.d(TAG, "ReadyWithNoSample entered");
@@ -325,7 +281,7 @@ public class ActivityAudioRecorder extends ActionBarActivity {
             }
         });
 
-        sd.sm.onEnteringState(State.ReadyWithSample, new StateMachine.StateTransition() {
+        sd.sm.onEnteringState(ReadyWithSample, new StateMachine.StateTransition() {
             @Override
             public void onState(Enum newState, Enum prevState, Enum triggerEvent) {
                 Log.d(TAG, "ReadyWithSample entered");
@@ -349,7 +305,7 @@ public class ActivityAudioRecorder extends ActionBarActivity {
             }
         });
 
-        sd.sm.onEnteringState(State.Playing, new StateMachine.StateTransition() {
+        sd.sm.onEnteringState(Playing, new StateMachine.StateTransition() {
             @Override
             public void onState(Enum newState, Enum prevState, Enum triggerEvent) {
                 Log.d(TAG, "Playing entered");
@@ -388,7 +344,7 @@ public class ActivityAudioRecorder extends ActionBarActivity {
         });
 
 
-        sd.sm.onEnteringState(State.Recording, new StateMachine.StateTransition() {
+        sd.sm.onEnteringState(Recording, new StateMachine.StateTransition() {
             @Override
             public void onState(Enum Playing, Enum prevState, Enum triggerEvent) {
                 Log.d(TAG, "Recording entered");
@@ -448,7 +404,7 @@ public class ActivityAudioRecorder extends ActionBarActivity {
             // Starts the recording process
             @Override
             public Enum nextState(Enum triggerEvent, Enum prevState) {
-                return State.Recording;
+                return Recording;
             }
         });
 
@@ -456,7 +412,8 @@ public class ActivityAudioRecorder extends ActionBarActivity {
             // Recording stopped without error
             @Override
             public Enum nextState(Enum triggerEvent, Enum prevState) {
-                return State.ReadyWithSample;
+                sd.isRecording = false;
+                return ReadyWithSample;
             }
         });
 
@@ -465,7 +422,7 @@ public class ActivityAudioRecorder extends ActionBarActivity {
             // Recording stopped without error
             @Override
             public Enum nextState(Enum triggerEvent, Enum prevState) {
-                return State.ReadyWithNoSample;
+                return ReadyWithNoSample;
             }
         });
 
@@ -473,7 +430,7 @@ public class ActivityAudioRecorder extends ActionBarActivity {
             // Recording stopped without error
             @Override
             public Enum nextState(Enum triggerEvent, Enum prevState) {
-                return State.Playing;
+                return Playing;
             }
         });
 
@@ -481,7 +438,8 @@ public class ActivityAudioRecorder extends ActionBarActivity {
             // Recording stopped without error
             @Override
             public Enum nextState(Enum triggerEvent, Enum prevState) {
-                return State.ReadyWithSample;
+                sd.isPlaying = false;
+                return ReadyWithSample;
             }
         });
 
@@ -489,7 +447,7 @@ public class ActivityAudioRecorder extends ActionBarActivity {
             // Recording stopped without error
             @Override
             public Enum nextState(Enum triggerEvent, Enum prevState) {
-                return State.ReadyWithSample;
+                return ReadyWithSample;
             }
         });
 
@@ -497,7 +455,24 @@ public class ActivityAudioRecorder extends ActionBarActivity {
             // Recording stopped without error
             @Override
             public Enum nextState(Enum triggerEvent, Enum prevState) {
-                return State.ReadyWithNoSample;
+                return ReadyWithNoSample;
+            }
+        });
+
+        sd.sm.onTriggeringEvent(Event.BackPressed, new StateMachine.EventTransition() {
+            // Recording stopped without error
+            @Override
+            public Enum nextState(Enum triggerEvent, Enum prevState) {
+                switch ((State) sd.sm.getState()) {
+                    case Playing:
+                        sd.sm.triggerEvent(Event.PlayStopPressed);
+                        return null;
+                    case Recording:
+                        sd.sm.triggerEvent(Event.RecordStopPressed);
+                        return null;
+                    default:
+                        return (State) sd.sm.getState();
+                }
             }
         });
 
@@ -532,7 +507,7 @@ public class ActivityAudioRecorder extends ActionBarActivity {
                                             try {
                                                 sd.intSampleRate = wavFile.getSampleRate();
                                                 displayAudioSampleCurrent();
-                                                sd.sm.setInitialState(State.ReadyWithSample);
+                                                sd.sm.setInitialState(ReadyWithSample);
                                                 return;
                                             } catch (Exception e) {
                                                 Toast.makeText(context, "Could not read wav file. " + e.getMessage(), Toast.LENGTH_SHORT).show();
@@ -540,7 +515,7 @@ public class ActivityAudioRecorder extends ActionBarActivity {
                                         } else {
                                             Toast.makeText(context, "Could not read wav file. " + strErrorMessage, Toast.LENGTH_SHORT).show();
                                         }
-                                        sd.sm.setInitialState(State.ReadyWithNoSample);
+                                        sd.sm.setInitialState(ReadyWithNoSample);
                                         sd.audioGraph.setPageValue(sd.audioGraph.new PageValue(1, 0, 0, 0, 100));
                                     }
                                 });
@@ -549,7 +524,7 @@ public class ActivityAudioRecorder extends ActionBarActivity {
 
                     }  else {
                         Toast.makeText(context, "Source file does not exist", Toast.LENGTH_SHORT).show();
-                        sd.sm.setInitialState(State.ReadyWithNoSample);
+                        sd.sm.setInitialState(ReadyWithNoSample);
                         sd.audioGraph.setPageValue(sd.audioGraph.new PageValue(1,0,0,0,100));
                     }
                 }
@@ -655,12 +630,48 @@ public class ActivityAudioRecorder extends ActionBarActivity {
         buttonRecord.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View view) {
+
+                if (sd.sm.getState() == State.ReadyWithSample) {
+                    // Warn user there can be some overwrite
+                    if (!sd.audioGraph.isPlayCursorAtEndOfFile()) {
+                        AlertDialog.Builder builder = new AlertDialog.Builder(context);
+                        builder.setTitle("Based on your cursor settings you may overwrite some audio, are you sure?");
+                        builder.setPositiveButton("OK", new DialogInterface.OnClickListener() {
+                            @Override
+                            public void onClick(DialogInterface dialogInterface, int i) {
+                                sd.sm.triggerEvent(Event.RecordPressed);
+                            }
+                        });
+                        builder.setNegativeButton("Cancel", new DialogInterface.OnClickListener() {
+                            @Override
+                            public void onClick(DialogInterface dialogInterface, int i) {
+                                return;
+                            }
+                        });
+                        builder.show();
+                    } else {
+                        sd.sm.triggerEvent(Event.RecordPressed);
+                    }
+                } else {
+                    switch ((State) sd.sm.getState()) {
+                        case ReadyWithNoSample:
+                            sd.sm.triggerEvent(Event.RecordPressed);
+                            break;
+                    }
+                }
+            }
+        });
+
+        buttonRecord.setOnLongClickListener(new View.OnLongClickListener() {
+            @Override
+            public boolean onLongClick(View v) {
                 switch ((State) sd.sm.getState()) {
                     case ReadyWithNoSample:
                     case ReadyWithSample:
                         sd.sm.triggerEvent(Event.RecordPressed);
                         break;
                 }
+                return true;
             }
         });
 
@@ -669,12 +680,13 @@ public class ActivityAudioRecorder extends ActionBarActivity {
         buttonStop.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View view) {
-                if (sd.isRecording) {
-                    sd.isRecording = false;
-                    sd.isPaused = false;
-                } else if (sd.isPlaying) {
-                    sd.isPlaying = false;
-                    sd.isPaused = false;
+                switch ((State) sd.sm.getState()) {
+                    case Recording:
+                        sd.sm.triggerEvent(Event.RecordStopPressed);
+                    case Playing:
+                        sd.sm.triggerEvent(Event.PlayStopPressed);
+                    default:
+                        // Do nothing
                 }
             }
         });
@@ -772,6 +784,57 @@ public class ActivityAudioRecorder extends ActionBarActivity {
         });
     }
 
+    @Override
+    public void onBackPressed() {
+
+        sd.sm.triggerEvent(Event.BackPressed);
+
+        AlertDialog.Builder builder = new AlertDialog.Builder(this);
+        builder.setTitle("Do you want to save before exiting?");
+        builder.setPositiveButton("Save", new DialogInterface.OnClickListener() {
+            @Override
+            public void onClick(DialogInterface dialogInterface, int i) {
+                File fileEditFile = new File(sd.strAudioEditFullFilename);
+                WavFile wavFile = new WavFile(context);
+                wavFile.WriteFileAsync(sd.audioSampleCurrent, sd.intSampleRate, fileEditFile, new WavFile.OnReadWriteCompleteListener() {
+                    @Override
+                    public void onComplete(final boolean boolIsSuccess, final String strErrorMessage) {
+                        runOnUiThread( new Runnable() {
+                            @Override
+                            public void run() {
+                                if (boolIsSuccess) {
+                                    setResult(RESULT_OK, getIntent());
+                                    ActivityAudioRecorder.this.finish();
+                                    ActivityAudioRecorder.super.onBackPressed();
+                                } else {
+                                    Toast.makeText(context,strErrorMessage, Toast.LENGTH_LONG).show();
+                                }
+                            }
+                        });
+                    }
+                });
+            }
+        });
+        builder.setNeutralButton("Exit", new DialogInterface.OnClickListener() {
+
+            @Override
+            public void onClick(DialogInterface dialogInterface, int i) {
+                setResult(RESULT_CANCELED, getIntent());
+                ActivityAudioRecorder.this.finish();
+                ActivityAudioRecorder.super.onBackPressed();
+            }
+        });
+
+        builder.setNegativeButton("Cancel", new DialogInterface.OnClickListener() {
+
+            @Override
+            public void onClick(DialogInterface dialog, int which) {
+                // Do nothing
+            }
+        });
+        builder.show();
+    }
+
     private void displayAudioSampleCurrent() throws IOException {
         sd.audioGraph.setPageSizeInMs(GRAPH_PAGE_SIZE_IN_MS); // This is done here because orientation can change any time
         int intRmsFrameSizeInShorts = sd.audioGraph.getOptimalDataSampleBufferSizeInShorts(sd.intSampleRate);
@@ -850,6 +913,9 @@ public class ActivityAudioRecorder extends ActionBarActivity {
                     AudioGraph.PageValue pageValueBefore = sd.audioGraph.getPageValue();
                     AudioGraph.PageValue pageValueAfter = sd.audioGraph.updateGraph(values[0], pageValueBefore);
                     sd.audioGraph.setPageValue(pageValueAfter);
+                    Log.d(TAG,"PlayPercent=" + pageValueAfter.fltPlayPercent);
+                    Log.d(TAG,"DataPercent=" + sd.audioGraph.getDataAmountAsPercent());
+                    Log.d(TAG,"DataAmount=" + sd.audioGraph.getPageValue().lngDataAmountInRmsFrames);
                     sd.audioGraph.invalidate();
                 } catch (Exception e) {
                     Log.e(TAG,"Record error", e);
@@ -901,8 +967,8 @@ public class ActivityAudioRecorder extends ActionBarActivity {
             int intRmsDataIndex = 0;
             double sum = 0;
 
-
-            while (sd.isRecording) {
+            boolean boolStopRecording = false;
+            while (!boolStopRecording) {
                 int numberOfShort = audioRecord.read(audioData, 0, audioData.length);
 
                 for (int i = 0; i < numberOfShort; i++) {
@@ -921,7 +987,14 @@ public class ActivityAudioRecorder extends ActionBarActivity {
                         if (intRmsDataIndex == intRmsData.length) {
                             progressProxy.callPublishProgress(intRmsData);
                             intRmsDataIndex = 0;
+                            if (!sd.isRecording) {
+                                // Ensure the amount of data in the audioBuffer ties up with the Rms frames in the graph
+                                boolStopRecording = true;
+                            }
                         }
+                    }
+                    if (boolStopRecording) {
+                       break;
                     }
                 }
             }
@@ -1012,6 +1085,7 @@ public class ActivityAudioRecorder extends ActionBarActivity {
         OnPlayComplete onPlayComplete;
 		private ProgressProxy progress;
 
+
 		public PlayBackAsyncTask(int frequency, int channelConfiguration, int audioEncoding,
                                     OnPlayComplete onPlayComplete) {
 			this.frequency = frequency;
@@ -1060,7 +1134,17 @@ public class ActivityAudioRecorder extends ActionBarActivity {
             }
 		}
 
-		public class ProgressProxy {
+        @Override
+        protected void onCancelled() {
+            super.onCancelled();
+            if(sd.audioTrack != null) {
+                sd.audioTrack.flush();
+                sd.audioTrack.stop();
+                sd.audioTrack.release();
+            }
+        }
+
+        public class ProgressProxy {
 			private PlayBackAsyncTask task;
 			public ProgressProxy(PlayBackAsyncTask task) {
 				this.task = task;
@@ -1081,7 +1165,7 @@ public class ActivityAudioRecorder extends ActionBarActivity {
 	    int minBufferSize = AudioTrack.getMinBufferSize(sd.intSampleRate,
                 AudioFormat.CHANNEL_OUT_MONO, AudioFormat.ENCODING_PCM_16BIT);
 
-	    AudioTrack audioTrack = new AudioTrack(AudioManager.STREAM_MUSIC, sd.intSampleRate,
+	    sd.audioTrack = new AudioTrack(AudioManager.STREAM_MUSIC, sd.intSampleRate,
 				AudioFormat.CHANNEL_OUT_MONO, AudioFormat.ENCODING_PCM_16BIT, minBufferSize, AudioTrack.MODE_STREAM);
 
 	    int i = 0;
@@ -1097,13 +1181,13 @@ public class ActivityAudioRecorder extends ActionBarActivity {
             dis.skipBytes(intSkipPositionInBytes);
 
 
-	        audioTrack.play();
+	        sd.audioTrack.play();
             sd.isPlaying = true;
 
 	        while((i = dis.read(bDataBuffer, 0, intDataBufferSize)) > -1){
                 // Send to audio device - because buffer size is same optimal, each full buffer read accounts for one RMS frame
                 short[] s = byte2short(bDataBuffer);
-                audioTrack.write(s, 0, i/2);
+                sd.audioTrack.write(s, 0, i/2);
 
                 // Call progress updater if a pre-determined amount of RMS frames has been played
                 intRmsFrameCount += 1;
@@ -1120,8 +1204,9 @@ public class ActivityAudioRecorder extends ActionBarActivity {
             }
 
             sd.isPlaying =  false;
-	        audioTrack.stop();
-	        audioTrack.release();
+            sd.audioTrack.flush();
+	        sd.audioTrack.stop();
+	        sd.audioTrack.release();
 	        dis.close();
 	        fin.close();
 
