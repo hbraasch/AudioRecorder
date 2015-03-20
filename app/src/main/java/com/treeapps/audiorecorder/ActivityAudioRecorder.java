@@ -112,8 +112,8 @@ public class ActivityAudioRecorder extends ActionBarActivity {
         public int intSampleRate;
 
         // Recording
-        public float fltPlayPercentBeforeRecording;
-        public float fltEndPercentBeforeRecording;
+        public double fltPlayPercentBeforeRecording;
+        public double fltEndPercentBeforeRecording;
 
         @Override
         public void onCreate(Bundle savedInstanceState) {
@@ -376,10 +376,10 @@ public class ActivityAudioRecorder extends ActionBarActivity {
                                     int intRmsFrameSizeInShorts = sd.audioGraph.getOptimalDataSampleBufferSizeInShorts(sd.intSampleRate);
                                     int intPageSizeInRmsFrames = sd.audioGraph.getPageSizeInRmsFrames();
                                     AudioGraph.PageValue pageValue = sd.audioGraph.getPageValue();
-                                    pageValue.lngDataAmountInRmsFrames = sd.audioSampleCurrent.getDataAmountInRmsFrames(intRmsFrameSizeInShorts);
                                     long lngStartRmsFrame = (long) ((pageValue.fltPageNum -1) * intPageSizeInRmsFrames);
                                     int[] intGraphBuffer = sd.audioSampleCurrent.getGraphBuffer(lngStartRmsFrame, intPageSizeInRmsFrames, intRmsFrameSizeInShorts);
                                     sd.audioGraph.updateGraph(intGraphBuffer);
+                                    sd.audioGraph.setPageValue(pageValue);
                                     sd.audioGraph.invalidate();
                                 } catch (Exception e) {
                                     Log.e(TAG, "Could not get graph values", e);
@@ -570,7 +570,7 @@ public class ActivityAudioRecorder extends ActionBarActivity {
 
         sd.audioGraph.setOnEndCursorChangedListener(new AudioGraph.OnEndCursorChangedListener() {
             @Override
-            public int[] getSinglePageAfterCursorBuffer(float fltPercent) {
+            public int[] getSinglePageAfterCursorBuffer(double fltPercent) {
                 int[] intGraphBuffer = null;
                 try {
 
@@ -747,21 +747,20 @@ public class ActivityAudioRecorder extends ActionBarActivity {
                             sd.audioSampleLeft.trimRight(lngStartCursorPositionInShort*2);
                             sd.audioSampleRight = audioLib.new AudioSample(strAudioRightFilenameWithoutExt, strAudioCurrentPlayFilenameWithoutExt);
                             sd.audioSampleRight.trimLeft(lngEndCursorPositionInShort*2);
-                            ArrayList<String> nameList = new ArrayList<String> ();
-                            nameList.add(sd.audioSampleLeft.getFullFilename());
-                            nameList.add(sd.audioSampleRight.getFullFilename());
-                            audioLib.mergeParts(nameList, sd.audioSampleCurrent.getFullFilename() );
+                            ArrayList<AudioSample> nameList = new ArrayList<AudioSample> ();
+                            nameList.add(sd.audioSampleLeft);
+                            nameList.add(sd.audioSampleRight);
+                            sd.audioSampleCurrent.mergeInto(nameList);
 
                             // Refresh display
                             // Calculate new PageValue
-                            pageValue.fltEndPercent = pageValue.fltStartPercent;
-                            pageValue.fltPageNum = 1;
-                            sd.audioGraph.setPageValue(pageValue);
+                            AudioGraph.PageValue updatePageValue = sd.audioGraph.updatePageValueAfterDeletion(pageValue, sd.audioSampleCurrent.getDataAmountInRmsFrames(sd.audioGraph.getOptimalDataSampleBufferSizeInShorts(sd.intSampleRate)));
+                            sd.audioGraph.setPageValue(updatePageValue);
 
                             // Get the accompanying buffer data
                             int intRmsFrameSizeInShorts = sd.audioGraph.getOptimalDataSampleBufferSizeInShorts(sd.intSampleRate);
                             int intPageSizeInRmsFrames = sd.audioGraph.getPageSizeInRmsFrames();
-                            long lngStartRmsFrame = (long) ((pageValue.fltPageNum -1) * intPageSizeInRmsFrames);
+                            long lngStartRmsFrame = (long) ((updatePageValue.fltPageNum -1) * intPageSizeInRmsFrames);
                             int[] intGraphBuffer = sd.audioSampleCurrent.getGraphBuffer(lngStartRmsFrame, intPageSizeInRmsFrames, intRmsFrameSizeInShorts);
                             sd.audioGraph.updateGraph(intGraphBuffer);
                             sd.audioGraph.invalidate();
@@ -1099,7 +1098,6 @@ public class ActivityAudioRecorder extends ActionBarActivity {
 		protected Void doInBackground(Void... params) {
 			try {
                 conductPlayBack(progress);
-                onPlayComplete.onComplete(true, null);
 			} catch (Exception e) {
 				// TODO Auto-generated catch block
 				e.printStackTrace();
@@ -1108,7 +1106,18 @@ public class ActivityAudioRecorder extends ActionBarActivity {
 			return null;
 		}
 
-		@Override
+        @Override
+        protected void onPostExecute(Void aVoid) {
+            super.onPostExecute(aVoid);
+            // If exit due to file end reached, ensure the play pointer is exactly at the end
+            if (sd.isPlaying) {
+                sd.audioGraph.setPlayCursorToEndOfFile();
+            }
+            sd.isPlaying = false; // Only set it here because its still used before
+            onPlayComplete.onComplete(true, null);
+        }
+
+        @Override
 		protected void onProgressUpdate(final Integer... intNewlyPlayedRmsFrames) {
             if (intNewlyPlayedRmsFrames.length != 0) {
                 // sd.audioGraph.updateGraph(values[0], false);
@@ -1194,21 +1203,21 @@ public class ActivityAudioRecorder extends ActionBarActivity {
                 if (intRmsFrameCount == RMS_FRAME_AMOUNT_TO_TRIGGER_PROGRESS_UPDATE) {
                     progressProxy.callPublishProgress(intRmsFrameCount);
                     intRmsFrameCount = 0;
+
+                    // Break if needed, placed here to ensure always a full frameCount is displayed
+                    if (!sd.isPlaying) {
+                        break;
+                    }
                 }
 
-
-                // Break if needed
-                if (!sd.isPlaying) {
-                    break;
-                }
             }
 
-            sd.isPlaying =  false;
             sd.audioTrack.flush();
 	        sd.audioTrack.stop();
 	        sd.audioTrack.release();
 	        dis.close();
 	        fin.close();
+
 
 	    } catch (FileNotFoundException e) {
 	        e.printStackTrace();

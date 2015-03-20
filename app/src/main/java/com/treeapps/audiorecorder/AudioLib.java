@@ -15,6 +15,7 @@ import java.io.InputStream;
 import java.io.OutputStream;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
+import java.nio.channels.FileChannel;
 import java.util.ArrayList;
 
 /**
@@ -325,42 +326,19 @@ public class AudioLib {
         }
     }
 
-    public void mergeParts(ArrayList<String> nameList, String strDestinationPath) {
-        File[] file = new File[nameList.size()];
-        byte AllFilesContent[] = null;
 
-        int TOTAL_SIZE = 0;
-        int FILE_NUMBER = nameList.size();
-        int FILE_LENGTH = 0;
-        int CURRENT_LENGTH = 0;
 
-        for (int i = 0; i < FILE_NUMBER; i++) {
-            file[i] = new File(nameList.get(i));
-            TOTAL_SIZE += file[i].length();
+    private void mergeParts(ArrayList<String> nameList, String strDestinationPath) throws IOException {
+        FileChannel inChannel = null;
+        FileChannel outChannel = new FileOutputStream(strDestinationPath, false).getChannel();
+        for (String strFileFullName : nameList) {
+            inChannel = new FileInputStream(strFileFullName).getChannel();
+            outChannel.transferFrom(inChannel, outChannel.size(), inChannel.size());
         }
-
-        try {
-            AllFilesContent = new byte[TOTAL_SIZE]; // Length of All Files,
-            // Total Size
-            InputStream inStream = null;
-
-            for (int j = 0; j < FILE_NUMBER; j++) {
-                inStream = new BufferedInputStream(new FileInputStream(file[j]));
-                FILE_LENGTH = (int) file[j].length();
-                inStream.read(AllFilesContent, CURRENT_LENGTH, FILE_LENGTH);
-                CURRENT_LENGTH += FILE_LENGTH;
-                inStream.close();
-            }
-
-        } catch (FileNotFoundException e) {
-            System.out.println("File not found " + e);
-        } catch (IOException ioe) {
-            System.out.println("Exception while reading the file " + ioe);
-        } finally {
-            write(AllFilesContent, strDestinationPath);
-        }
-
+        if (inChannel != null)  inChannel.close();
+        outChannel.close();
     }
+
 
     private void write(byte[] allFilesContent, String strDestinationPath) {
         File file = new File(strDestinationPath);
