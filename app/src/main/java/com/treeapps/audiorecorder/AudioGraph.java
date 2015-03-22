@@ -26,7 +26,7 @@ import java.util.Arrays;
 public class AudioGraph extends ImageView {
 
     private static final String PAGE_COLOR = "#e0bc1d";
-    private static final String GRAPH_BORDER_COLOR = "#bbbbbb";
+    private static final String GRAPH_BORDER_COLOR = "#e0bc1d"; // "#bbbbbb";
     private static final String GRAPH_FILL_COLOR = "#cccccc";
     private static final String TAG = "AudioGraph";
 

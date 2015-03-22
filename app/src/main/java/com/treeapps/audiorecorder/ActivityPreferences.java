@@ -16,20 +16,25 @@ import android.view.MenuItem;
 public class ActivityPreferences extends PreferenceActivity implements SharedPreferences.OnSharedPreferenceChangeListener {
 
     public static final String KEY_LIST_PREFERENCE = "listPref";
+    public static final String BOOL_IS_BUSY_RECORDING_OR_PLAYING = "com.treeapps.audiorecorder.is_busy_recording_or_playing";
 
     public ListPreference mListPreference;
 
 
+    @SuppressWarnings("deprecation")
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
 
         addPreferencesFromResource(R.xml.activity_preferences);
 
+
+
         setupGui();
 
     }
 
+    @SuppressWarnings("deprecation")
     private void setupGui() {
         mListPreference = (ListPreference)getPreferenceScreen().findPreference(KEY_LIST_PREFERENCE);
 
@@ -41,6 +46,11 @@ public class ActivityPreferences extends PreferenceActivity implements SharedPre
         // Set up a listener whenever a key changes
         getPreferenceScreen().getSharedPreferences().registerOnSharedPreferenceChangeListener(this);
 
+        Bundle bundle = getIntent().getExtras();
+        boolean boolIsRecordingOrPlaying = bundle.getBoolean(BOOL_IS_BUSY_RECORDING_OR_PLAYING,true);
+        mListPreference.setEnabled(!boolIsRecordingOrPlaying);
+
+
     }
 
     @Override
@@ -50,6 +60,7 @@ public class ActivityPreferences extends PreferenceActivity implements SharedPre
         setupGui();
     }
 
+    @SuppressWarnings("deprecation")
     @Override
     protected void onPause() {
         super.onPause();

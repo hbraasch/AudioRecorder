@@ -1,5 +1,6 @@
 package com.treeapps.audiorecorder;
 
+import android.app.Activity;
 import android.app.AlertDialog;
 import android.app.Fragment;
 import android.app.FragmentManager;
@@ -7,6 +8,8 @@ import android.content.Context;
 import android.content.DialogInterface;
 import android.content.Intent;
 import android.content.SharedPreferences;
+import android.content.pm.ActivityInfo;
+import android.content.res.Configuration;
 import android.media.AudioFormat;
 import android.media.AudioManager;
 import android.media.AudioRecord;
@@ -325,10 +328,14 @@ public class ActivityAudioRecorder extends ActionBarActivity {
                         // Cursor enable/disable
                         sd.audioGraph.enablePlayCursor(false);
 
+                        // Screen orientation disabled because different screen requires a different RMS frame count, cannot change when already playing
+                        disableScreenRotation();
+
                         // Action
                         startPlay(new OnPlayComplete() {
                             @Override
                             public void onComplete(boolean boolIsSuccess, String strErrorMessage) {
+                                enableScreenRotation();
                                 if (boolIsSuccess) {
                                     sd.sm.triggerEvent(Event.PlayStopPressed);
                                 } else {
@@ -359,6 +366,8 @@ public class ActivityAudioRecorder extends ActionBarActivity {
                         buttonSkipToStart.setVisibility(View.GONE);
                         buttonSkipToEnd.setVisibility(View.GONE);
                         buttonDelete.setVisibility(View.GONE);
+
+                        disableScreenRotation();
                     }
                 });
 
@@ -366,6 +375,7 @@ public class ActivityAudioRecorder extends ActionBarActivity {
                 startRecording(new OnRecordingComplete() {
                     @Override
                     public void onComplete(boolean boolIsSuccess, String strErrorMessage) {
+                        enableScreenRotation();
                         if (boolIsSuccess) {
 
                             runOnUiThread(new Runnable() {
@@ -1268,43 +1278,11 @@ public class ActivityAudioRecorder extends ActionBarActivity {
 
     }
 
-    /**
-     * Not used, was used during development
-     * @param item
-     */
-    public void onMenuImportClicked(MenuItem item) {
-        WavFile wavFile = new WavFile(this);
-        File fileInput = new File( sd.strWorkFolderFullPath + "/WavTestFile.wav");
-        if (!fileInput.exists()) {
-            Toast.makeText(this, "File " + fileInput.toString() + " does not exist", Toast.LENGTH_LONG).show();
-        }
-        try {
-            wavFile.ReadFile(fileInput, sd.audioSampleCurrent);
-            sd.audioGraph.clearGraph();
-            displayAudioSampleCurrent();
 
-        } catch (IOException e) {
-            e.printStackTrace();
-        }
-    }
-
-    public void onMenuExportClicked(MenuItem item) {
-        WavFile wavFile = new WavFile(this);
-        File fileOutput = new File( sd.strWorkFolderFullPath + "/WavTestFileOut.wav");
-        if (fileOutput.exists()) {
-            fileOutput.delete();
-        }
-        try {
-            wavFile.WriteFile(sd.audioSampleCurrent,sd.intSampleRate,fileOutput);
-            Toast.makeText(this,"File exported",Toast.LENGTH_LONG).show();
-
-        } catch (Exception e) {
-            e.printStackTrace();
-        }
-    }
 
     public void onMenuSettingsClicked(MenuItem item) {
         Intent intent = new Intent(this,ActivityPreferences.class);
+        intent.putExtra(ActivityPreferences.BOOL_IS_BUSY_RECORDING_OR_PLAYING, sd.isPlaying || sd.isRecording);
         startActivityForResult(intent, GET_PREFERENCES);
     }
 
@@ -1333,5 +1311,16 @@ public class ActivityAudioRecorder extends ActionBarActivity {
                 }
             }
         }
+    }
+
+    public void disableScreenRotation() {
+        if (context.getResources().getConfiguration().orientation == Configuration.ORIENTATION_PORTRAIT)
+            ((Activity) context).setRequestedOrientation(ActivityInfo.SCREEN_ORIENTATION_PORTRAIT);
+        else
+            ((Activity) context).setRequestedOrientation(ActivityInfo.SCREEN_ORIENTATION_LANDSCAPE);
+    }
+
+    public void enableScreenRotation() {
+        ((Activity) context).setRequestedOrientation(ActivityInfo.SCREEN_ORIENTATION_SENSOR);
     }
 }
