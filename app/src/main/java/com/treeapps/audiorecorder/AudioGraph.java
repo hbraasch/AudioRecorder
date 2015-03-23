@@ -273,7 +273,7 @@ public class AudioGraph extends ImageView {
     }
 
     public long percentToRmsFrame(double fltPercent, long lngDataSizeInPcmShorts, int intAudioSampleRate) {
-        int intPageAmount = (int) Math.ceil((double)lngDataSizeInPcmShorts/(intPageSizeInRmsFrames * getOptimalDataSampleBufferSizeInShorts(intAudioSampleRate)) );
+        int intPageAmount = (int) Math.ceil((double)lngDataSizeInPcmShorts/(intPageSizeInRmsFrames * getOptimalDataSampleBufferSizeInShortsAccurate(intAudioSampleRate)) );
         long lngTimelineLenInRmsFrames = intPageAmount * intPageSizeInRmsFrames;
         long lngConvertedToRmsFrames = (long) ((fltPercent/100) * lngTimelineLenInRmsFrames);
         return lngConvertedToRmsFrames;
@@ -281,7 +281,7 @@ public class AudioGraph extends ImageView {
 
     public long percentToShort(double fltPercent, long lngDataSizeInPcmShorts, int intAudioSampleRate) {
         long lngConvertedToRmsFrames = percentToRmsFrame(fltPercent, lngDataSizeInPcmShorts, intAudioSampleRate);
-        long lngConvertedToShorts = lngConvertedToRmsFrames * getOptimalDataSampleBufferSizeInShorts(intAudioSampleRate);
+        long lngConvertedToShorts = (long) (lngConvertedToRmsFrames * getOptimalDataSampleBufferSizeInShortsAccurate(intAudioSampleRate));
         return lngConvertedToShorts;
     }
 
@@ -870,12 +870,6 @@ public class AudioGraph extends ImageView {
      * @return
      */
 
-    public int getOptimalDataSampleBufferSizeInShorts(int intAudioSampleRate) {
-        double fltPageSizeInSecs = intPageSizeInMs/1000f;
-        double floatShortSamplesPerPage = intAudioSampleRate * fltPageSizeInSecs;
-        double floatShortSamplesPerRmsValue = floatShortSamplesPerPage/rectGraph.width();
-        return (int) floatShortSamplesPerRmsValue;
-    }
 
     public double getOptimalDataSampleBufferSizeInShortsAccurate(int intAudioSampleRate) {
         double fltPageSizeInSecs = intPageSizeInMs/1000f;
@@ -1124,6 +1118,8 @@ public class AudioGraph extends ImageView {
         protected double fltGraphHeight = rectGraph.height();
         protected double fltTimeLineHeight = intThumbHeight * 2;
 
+        protected int intValueTimelineRange = (int)(pointTimelineEnd.x - pointTimelineStart.x);
+
         public Paint paintCursorLine;
         protected  final int intCursorLineSizeInDp = 3;
         protected  int intCursorLineColor;
@@ -1187,6 +1183,26 @@ public class AudioGraph extends ImageView {
             touchX = Math.max(rectHotspotValueRange.left, touchX);
             touchX = Math.min(rectHotspotValueRange.right, touchX);
             fltValue = super.getValue(touchX);
+        }
+
+        public double convertFromTimeLineValue(double fltTimeLineValue) {
+            double fltPageWidth = (double)intValueTimelineRange / intPageAmount;
+            double fltPageHorStartPosition = ((pageValue.fltPageNum - 1) * fltPageWidth);
+            double fltPageHorEndPosition = (pageValue.fltPageNum * fltPageWidth);
+            double fltTimeLinePosition = (fltTimeLineValue /100f) *intValueTimelineRange;
+
+            if ((fltTimeLinePosition >= fltPageHorStartPosition) && (fltTimeLinePosition <= fltPageHorEndPosition)) {
+                // Selected position is inside display page
+                double fltMyValue = ((fltTimeLinePosition - fltPageHorStartPosition)/fltPageWidth) * 100;
+                return fltMyValue;
+            } else if (fltTimeLinePosition < fltPageHorStartPosition){
+                // Selected position is outside display page
+                return 0.0f;
+            } else if (fltTimeLinePosition > fltPageHorEndPosition){
+                // Selected position is outside display page
+                return 100.0f;
+            }
+            return 0;
         }
 
     }
@@ -1289,7 +1305,7 @@ public class AudioGraph extends ImageView {
         @Override
         public void setValue(double fltValue) {
 
-            double fltEndValue = cursorGraphEnd.getValue();
+            double fltEndValue =   convertFromTimeLineValue(pageValue.fltEndPercent);
             fltValue = Math.min(fltEndValue, fltValue);
 
             float intValueX = (float)(rectGraph.left + ((fltValue /100.0f) * (rectGraph.right - rectGraph.left)));
@@ -1347,7 +1363,7 @@ public class AudioGraph extends ImageView {
 
     private class CursorGraphEnd extends Cursor {
 
-        private int intValueTimelineRange = (int)(pointTimelineEnd.x - pointTimelineStart.x);
+
 
         private CursorGraphEnd(Bitmap bmpImageNormal, Bitmap bmpImagePressed, HotSpotType hotSpotType, OnCursorChanged onCursorChanged) {
             super(bmpImageNormal, bmpImagePressed, hotSpotType, onCursorChanged);
@@ -1359,7 +1375,7 @@ public class AudioGraph extends ImageView {
         @Override
         public void setValue(double fltValue) {
 
-            double fltStartValue = cursorGraphStart.getValue();
+            double fltStartValue =   convertFromTimeLineValue(pageValue.fltStartPercent);
             fltValue = Math.max(fltStartValue, fltValue);
 
             float intValueX = (float)(rectGraph.left + ((fltValue /100.0f) * (rectGraph.right - rectGraph.left)));
@@ -1414,6 +1430,8 @@ public class AudioGraph extends ImageView {
                 setVisibility(false);
             }
         }
+
+
 
     }
 
@@ -1684,13 +1702,14 @@ public class AudioGraph extends ImageView {
             pageValue.fltPageNum = fltIndexIntoPages;
 
             // Set other cursor on timeline
-            cursorTimelinePlay.setValue( pageNewValue.fltPlayPercent);
-            cursorTimelineStart.setValue( pageNewValue.fltStartPercent);
-            cursorTimelineEnd.setValue( pageNewValue.fltEndPercent);
+            cursorTimelinePlay.setValue(pageNewValue.fltPlayPercent);
+            cursorTimelineStart.setValue(pageNewValue.fltStartPercent);
+            cursorTimelineEnd.setValue(pageNewValue.fltEndPercent);
 
             // Set slave cursor value
-            cursorGraphPlay.setToCursorTimelineValue( pageNewValue.fltPlayPercent);
-            cursorGraphEnd.setToCursorTimelineValue( pageNewValue.fltEndPercent);
+            cursorGraphPlay.setToCursorTimelineValue(pageNewValue.fltPlayPercent);
+            cursorGraphStart.setToCursorTimelineValue(pageNewValue.fltStartPercent);
+            cursorGraphEnd.setToCursorTimelineValue(pageNewValue.fltEndPercent);
 
         }
 

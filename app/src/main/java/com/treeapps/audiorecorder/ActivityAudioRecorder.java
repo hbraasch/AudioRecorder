@@ -387,11 +387,11 @@ public class ActivityAudioRecorder extends ActionBarActivity {
                                 public void run() {
                                 // Update the display with latest
                                 try {
-                                    int intRmsFrameSizeInShorts = sd.audioGraph.getOptimalDataSampleBufferSizeInShorts(sd.intSampleRate);
+                                    double fltRmsFrameSizeInShorts = sd.audioGraph.getOptimalDataSampleBufferSizeInShortsAccurate(sd.intSampleRate);
                                     int intPageSizeInRmsFrames = sd.audioGraph.getPageSizeInRmsFrames();
                                     AudioGraph.PageValue pageValue = sd.audioGraph.getPageValue();
-                                    long lngStartRmsFrame = (long) ((pageValue.fltPageNum -1) * intPageSizeInRmsFrames);
-                                    int[] intGraphBuffer = sd.audioSampleCurrent.getGraphBuffer(lngStartRmsFrame, intPageSizeInRmsFrames, intRmsFrameSizeInShorts);
+                                    double fltStartRmsFrame = (long) ((pageValue.fltPageNum -1) * intPageSizeInRmsFrames);
+                                    int[] intGraphBuffer = sd.audioSampleCurrent.getGraphBuffer(fltStartRmsFrame, intPageSizeInRmsFrames, fltRmsFrameSizeInShorts);
                                     sd.audioGraph.updateGraph(intGraphBuffer);
                                     sd.audioGraph.setPageValue(pageValue);
                                     sd.audioGraph.invalidate();
@@ -588,10 +588,10 @@ public class ActivityAudioRecorder extends ActionBarActivity {
                 int[] intGraphBuffer = null;
                 try {
 
-                    int intRmsFrameSizeInShorts = sd.audioGraph.getOptimalDataSampleBufferSizeInShorts(sd.intSampleRate);
+                    double fltRmsFrameSizeInShorts = sd.audioGraph.getOptimalDataSampleBufferSizeInShortsAccurate(sd.intSampleRate);
                     int intPageSizeInRmsFrames = sd.audioGraph.getPageSizeInRmsFrames();
                     long lngStartRmsFrame = sd.audioGraph.percentToRmsFrame(fltPercent, sd.audioSampleCurrent.lngSizePcmInShorts, sd.intSampleRate);
-                    intGraphBuffer = sd.audioSampleCurrent.getGraphBuffer(lngStartRmsFrame, intPageSizeInRmsFrames, intRmsFrameSizeInShorts);
+                    intGraphBuffer = sd.audioSampleCurrent.getGraphBuffer(lngStartRmsFrame, intPageSizeInRmsFrames, fltRmsFrameSizeInShorts);
 
                 } catch (IOException e) {
                     e.printStackTrace();
@@ -613,10 +613,10 @@ public class ActivityAudioRecorder extends ActionBarActivity {
 
                     // Get the accompanying buffer data
                     if (sd.audioSampleCurrent.exists()) {
-                        int intRmsFrameSizeInShorts = sd.audioGraph.getOptimalDataSampleBufferSizeInShorts(sd.intSampleRate);
+                        double fltRmsFrameSizeInShorts = sd.audioGraph.getOptimalDataSampleBufferSizeInShortsAccurate(sd.intSampleRate);
                         int intPageSizeInRmsFrames = sd.audioGraph.getPageSizeInRmsFrames();
-                        long lngStartRmsFrame = (long) ((pageValue.fltPageNum -1) * intPageSizeInRmsFrames);
-                        int[] intGraphBuffer = sd.audioSampleCurrent.getGraphBuffer(lngStartRmsFrame, intPageSizeInRmsFrames, intRmsFrameSizeInShorts);
+                        double fltStartRmsFrame = (long) ((pageValue.fltPageNum -1) * intPageSizeInRmsFrames);
+                        int[] intGraphBuffer = sd.audioSampleCurrent.getGraphBuffer(fltStartRmsFrame, intPageSizeInRmsFrames, fltRmsFrameSizeInShorts);
                         sd.audioGraph.updateGraph(intGraphBuffer);
                     }
 
@@ -768,14 +768,14 @@ public class ActivityAudioRecorder extends ActionBarActivity {
 
                             // Refresh display
                             // Calculate new PageValue
-                            AudioGraph.PageValue updatePageValue = sd.audioGraph.updatePageValueAfterDeletion(pageValue, sd.audioSampleCurrent.getDataAmountInRmsFrames(sd.audioGraph.getOptimalDataSampleBufferSizeInShorts(sd.intSampleRate)));
+                            AudioGraph.PageValue updatePageValue = sd.audioGraph.updatePageValueAfterDeletion(pageValue, sd.audioSampleCurrent.getDataAmountInRmsFrames(sd.audioGraph.getOptimalDataSampleBufferSizeInShortsAccurate(sd.intSampleRate)));
                             sd.audioGraph.setPageValue(updatePageValue);
 
                             // Get the accompanying buffer data
-                            int intRmsFrameSizeInShorts = sd.audioGraph.getOptimalDataSampleBufferSizeInShorts(sd.intSampleRate);
+                            double fltRmsFrameSizeInShorts = sd.audioGraph.getOptimalDataSampleBufferSizeInShortsAccurate(sd.intSampleRate);
                             int intPageSizeInRmsFrames = sd.audioGraph.getPageSizeInRmsFrames();
-                            long lngStartRmsFrame = (long) ((updatePageValue.fltPageNum -1) * intPageSizeInRmsFrames);
-                            int[] intGraphBuffer = sd.audioSampleCurrent.getGraphBuffer(lngStartRmsFrame, intPageSizeInRmsFrames, intRmsFrameSizeInShorts);
+                            double fltStartRmsFrame = (long) ((updatePageValue.fltPageNum -1) * intPageSizeInRmsFrames);
+                            int[] intGraphBuffer = sd.audioSampleCurrent.getGraphBuffer(fltStartRmsFrame, intPageSizeInRmsFrames, fltRmsFrameSizeInShorts);
                             sd.audioGraph.updateGraph(intGraphBuffer);
                             sd.audioGraph.invalidate();
 
@@ -850,13 +850,13 @@ public class ActivityAudioRecorder extends ActionBarActivity {
 
     private void displayAudioSampleCurrent() throws IOException {
         sd.audioGraph.setPageSizeInMs(GRAPH_PAGE_SIZE_IN_MS); // This is done here because orientation can change any time
-        int intRmsFrameSizeInShorts = sd.audioGraph.getOptimalDataSampleBufferSizeInShorts(sd.intSampleRate);
+        double fltRmsFrameSizeInShorts = sd.audioGraph.getOptimalDataSampleBufferSizeInShortsAccurate(sd.intSampleRate);
         int intPageSizeInRmsFrames = sd.audioGraph.getPageSizeInRmsFrames();
-        long lngStartRmsFrame = 0;
-        int[] intGraphBuffer = sd.audioSampleCurrent.getGraphBuffer(lngStartRmsFrame, intPageSizeInRmsFrames, intRmsFrameSizeInShorts);
+        double fltStartRmsFrame = 0;
+        int[] intGraphBuffer = sd.audioSampleCurrent.getGraphBuffer(fltStartRmsFrame, intPageSizeInRmsFrames, fltRmsFrameSizeInShorts);
         sd.audioGraph.updateGraph(intGraphBuffer);
-        int intDataAmountInRmsFrames = sd.audioSampleCurrent.getDataAmountInRmsFrames(intRmsFrameSizeInShorts);
-        sd.audioGraph.setPageValue(sd.audioGraph.new PageValue(1,intDataAmountInRmsFrames,0,0,100));
+        double intDataAmountInRmsFrames = sd.audioSampleCurrent.getDataAmountInRmsFrames(fltRmsFrameSizeInShorts);
+        sd.audioGraph.setPageValue(sd.audioGraph.new PageValue(1, (long) intDataAmountInRmsFrames,0,0,100));
     }
 
 
@@ -973,7 +973,7 @@ public class ActivityAudioRecorder extends ActionBarActivity {
 
             audioRecord.startRecording();
 
-            int intRmsDataBufferSize = sd.audioGraph.getOptimalDataSampleBufferSizeInShorts(sd.intSampleRate);
+            int intRmsDataBufferSize = (int) sd.audioGraph.getOptimalDataSampleBufferSizeInShortsAccurate(sd.intSampleRate);
             int[] intRmsBuffer = new int[intRmsDataBufferSize];
             int[] intRmsData = new int[10];
             int intRmsBufferIndex = 0;
@@ -1141,10 +1141,10 @@ public class ActivityAudioRecorder extends ActionBarActivity {
                     if (pageValueAfter.getCurrentPage() != pageValueBefore.getCurrentPage() ) {
                         // Page changed, get new buffer data from file and display
                         // Get the accompanying buffer data
-                        int intRmsFrameSizeInShorts = sd.audioGraph.getOptimalDataSampleBufferSizeInShorts(sd.intSampleRate);
+                        double fltRmsFrameSizeInShorts = sd.audioGraph.getOptimalDataSampleBufferSizeInShortsAccurate(sd.intSampleRate);
                         int intPageSizeInRmsFrames = sd.audioGraph.getPageSizeInRmsFrames();
-                        long lngStartRmsFrame = (long) ((pageValueAfter.fltPageNum -1) * intPageSizeInRmsFrames);
-                        int[] intGraphBuffer = sd.audioSampleCurrent.getGraphBuffer(lngStartRmsFrame, intPageSizeInRmsFrames, intRmsFrameSizeInShorts);
+                        double fltStartRmsFrame = (long) ((pageValueAfter.fltPageNum -1) * intPageSizeInRmsFrames);
+                        int[] intGraphBuffer = sd.audioSampleCurrent.getGraphBuffer(fltStartRmsFrame, intPageSizeInRmsFrames, fltRmsFrameSizeInShorts);
                         sd.audioGraph.updateGraph(intGraphBuffer);
                     }
                     // Set the PageValue to update cursors
@@ -1192,7 +1192,7 @@ public class ActivityAudioRecorder extends ActionBarActivity {
 				AudioFormat.CHANNEL_OUT_MONO, AudioFormat.ENCODING_PCM_16BIT, minBufferSize, AudioTrack.MODE_STREAM);
 
 	    int i = 0;
-	    int intDataBufferSize = sd.audioGraph.getOptimalDataSampleBufferSizeInShorts(sd.intSampleRate) * 2;
+	    int intDataBufferSize =  (int) sd.audioGraph.getOptimalDataSampleBufferSizeInShortsAccurate(sd.intSampleRate) * 2;
 	    byte[] bDataBuffer = new byte[intDataBufferSize];
         int intRmsFrameCount = 0;
         int RMS_FRAME_AMOUNT_TO_TRIGGER_PROGRESS_UPDATE = 10;
