@@ -877,6 +877,13 @@ public class AudioGraph extends ImageView {
         return (int) floatShortSamplesPerRmsValue;
     }
 
+    public double getOptimalDataSampleBufferSizeInShortsAccurate(int intAudioSampleRate) {
+        double fltPageSizeInSecs = intPageSizeInMs/1000f;
+        double floatShortSamplesPerPage = intAudioSampleRate * fltPageSizeInSecs;
+        double floatShortSamplesPerRmsValue = floatShortSamplesPerPage/rectGraph.width();
+        return floatShortSamplesPerRmsValue;
+    }
+
 
 
     @Override
@@ -999,14 +1006,22 @@ public class AudioGraph extends ImageView {
         intWidgetWidth = (int) ww;
         intWidgetHeight = (int) hh;
 
-        initItemLocations();
-
         // Announce initialisation complete
         if (boolIsInitializing) {
+
+            initItemLocations();
+            setPageValue(pageValue);
+
             // Trigger event to caller that initialization is done, to load the initial graph data
             boolIsInitializing = false;
             onInitCompleteListener.onComplete();
         } else {
+
+            PageValue pageValueBeforeInit = pageValue.copy();
+            initItemLocations();
+            pageValue = pageValueBeforeInit;
+
+
             // Trigger event to caller that a size change took place, to reload the graph data for the new size
             // Convert PageValue to tie up with new display size
             double fltDataAmountInMs = pageValue.lngDataAmountInRmsFrames * fltRmsFramePeriodInMs;
@@ -1490,7 +1505,7 @@ public class AudioGraph extends ImageView {
         @Override
         public void setValue(double fltValue) {
 
-            double fltEndValue = cursorTimelineEnd.getValue();
+            double fltEndValue = pageValue.fltEndPercent;
             fltValue = Math.min(fltEndValue, fltValue);
             this.fltValue = fltValue;
             pageValue.fltStartPercent = fltValue;
@@ -1549,7 +1564,7 @@ public class AudioGraph extends ImageView {
         @Override
         public void setValue(double fltValue) {
 
-            double fltStartValue = cursorTimelineStart.getValue();
+            double fltStartValue = pageValue.fltStartPercent;
             fltValue = Math.max(fltStartValue, fltValue);
             this.fltValue = fltValue;
             pageValue.fltEndPercent = fltValue;

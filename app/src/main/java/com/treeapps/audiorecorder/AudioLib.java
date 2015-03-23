@@ -83,6 +83,62 @@ public class AudioLib {
             return filePathPcm.getAbsolutePath();
         }
 
+        public int[] getGraphBuffer(double fltRmsStartFrame, int intRmsFramesAmount, double fltRmsFrameSizeInSingles) throws IOException {
+            int intRmsFrameSizeInSingles = (int) fltRmsFrameSizeInSingles;
+
+            if (!exists()) {
+                throw new IOException("CurrentFile does not exist");
+            }
+            long lngDataAmountInBytes = roundDownToEven((long) (intRmsFramesAmount * (fltRmsFrameSizeInSingles * 2)));
+            long lngStartByte = roundDownToEven((long) (fltRmsStartFrame * fltRmsFrameSizeInSingles * 2));
+            long lngEndByte = roundDownToEven((long) (lngStartByte + lngDataAmountInBytes));
+
+            if (lngStartByte > lngSizePcmInShorts * 2) {
+                lngStartByte = 0;
+            }
+
+            if (lngEndByte > lngSizePcmInShorts * 2) {
+                lngEndByte = lngSizePcmInShorts * 2;
+            }
+
+            long lngBytesToRead = lngEndByte - lngStartByte;
+
+            int len = 0;
+            long lngBytesRead = 0;
+            int intRmsBufferIndex = 0;
+            int bufferSize = intRmsFrameSizeInSingles * 2;
+            byte[] b = new byte[bufferSize];
+            DataInputStream dis = new DataInputStream(new BufferedInputStream(new FileInputStream(filePathPcm)));
+            int[] intRmsBuffer = new int[intRmsFramesAmount];
+            dis.skipBytes((int) lngStartByte);
+
+            while ((len = dis.read(b, 0, bufferSize)) > -1) {
+                lngBytesRead += len;
+
+                // Convert to short
+                short[] s = byte2short(b);
+
+                // Calc and save RMS
+                double sum = 0;
+                for (int j = 0; j < s.length; j++) {
+                    sum += s[j] * s[j];
+                }
+                final double amplitude = sum / s.length;
+                intRmsBuffer[intRmsBufferIndex] = ((int) Math.sqrt(amplitude));
+                intRmsBufferIndex += 1;
+
+                // Break if needed
+                if (lngBytesRead >= lngBytesToRead) {
+                    break;
+                }
+                if (intRmsBufferIndex >= intRmsBuffer.length) {
+                    break;
+                }
+            }
+            dis.close();
+            return intRmsBuffer;
+        }
+
         public int[] getGraphBuffer(long lngRmsStartFrame, int intRmsFramesAmount, int intRmsFrameSizeInSingles) throws IOException {
             if (!exists()) {
                 throw new IOException("CurrentFile does not exist");

@@ -245,7 +245,11 @@ public class ActivityAudioRecorder extends ActionBarActivity {
             case "4":
                return 11025;
             default:
-                return 16000;        }
+                SharedPreferences.Editor editor = prefs.edit();
+                editor.putString(ActivityPreferences.KEY_LIST_PREFERENCE,"4");
+                editor.commit();
+                return 11025;
+        }
     }
 
 
@@ -547,10 +551,10 @@ public class ActivityAudioRecorder extends ActionBarActivity {
                 if (sd.audioSampleCurrent.exists()) {
                     try {
                         sd.audioGraph.setPageSizeInMs(GRAPH_PAGE_SIZE_IN_MS); // This is done here because orientation can change any time
-                        int intRmsFrameSizeInShorts = sd.audioGraph.getOptimalDataSampleBufferSizeInShorts(sd.intSampleRate);
+                        double fltRmsFrameSizeInShorts = sd.audioGraph.getOptimalDataSampleBufferSizeInShortsAccurate(sd.intSampleRate);
                         int intPageSizeInRmsFrames = sd.audioGraph.getPageSizeInRmsFrames();
-                        long lngStartRmsFrame = (long) ((pageValue.fltPageNum -1) * intPageSizeInRmsFrames);
-                        int[] intGraphBuffer = sd.audioSampleCurrent.getGraphBuffer(lngStartRmsFrame, intPageSizeInRmsFrames, intRmsFrameSizeInShorts);
+                        double fltStartRmsFrame =  (pageValue.fltPageNum -1) * intPageSizeInRmsFrames;
+                        int[] intGraphBuffer = sd.audioSampleCurrent.getGraphBuffer(fltStartRmsFrame, intPageSizeInRmsFrames, fltRmsFrameSizeInShorts);
                         sd.audioGraph.updateGraph(intGraphBuffer);
                         sd.audioGraph.setPageValue(pageValue);
                     } catch (Exception e) {
@@ -566,10 +570,10 @@ public class ActivityAudioRecorder extends ActionBarActivity {
                 if (sd.audioSampleCurrent.exists()) {
                     try {
                         sd.audioGraph.setPageSizeInMs(GRAPH_PAGE_SIZE_IN_MS); // This is done here because orientation can change any time
-                        int intRmsFrameSizeInShorts = sd.audioGraph.getOptimalDataSampleBufferSizeInShorts(sd.intSampleRate);
+                        double fltRmsFrameSizeInShorts = sd.audioGraph.getOptimalDataSampleBufferSizeInShortsAccurate(sd.intSampleRate);
                         int intPageSizeInRmsFrames = sd.audioGraph.getPageSizeInRmsFrames();
-                        long lngStartRmsFrame = (long) ((pageValue.fltPageNum -1) * intPageSizeInRmsFrames);
-                        int[] intGraphBuffer = sd.audioSampleCurrent.getGraphBuffer(lngStartRmsFrame, intPageSizeInRmsFrames, intRmsFrameSizeInShorts);
+                        double fltStartRmsFrame = (pageValue.fltPageNum -1) * intPageSizeInRmsFrames;
+                        int[] intGraphBuffer = sd.audioSampleCurrent.getGraphBuffer(fltStartRmsFrame, intPageSizeInRmsFrames, fltRmsFrameSizeInShorts);
                         sd.audioGraph.updateGraph(intGraphBuffer);
                     } catch (Exception e) {
                         Log.e(TAG, "Could not get graph values", e);
@@ -714,10 +718,10 @@ public class ActivityAudioRecorder extends ActionBarActivity {
 
                     // Get the accompanying buffer data
                     if (sd.audioSampleCurrent.exists()) {
-                        int intRmsFrameSizeInShorts = sd.audioGraph.getOptimalDataSampleBufferSizeInShorts(sd.intSampleRate);
+                        double fltRmsFrameSizeInShorts = sd.audioGraph.getOptimalDataSampleBufferSizeInShortsAccurate(sd.intSampleRate);
                         int intPageSizeInRmsFrames = sd.audioGraph.getPageSizeInRmsFrames();
-                        long lngStartRmsFrame = (long) ((pageValue.fltPageNum -1) * intPageSizeInRmsFrames);
-                        int[] intGraphBuffer = sd.audioSampleCurrent.getGraphBuffer(lngStartRmsFrame, intPageSizeInRmsFrames, intRmsFrameSizeInShorts);
+                        double fltStartRmsFrame = (long) ((pageValue.fltPageNum -1) * intPageSizeInRmsFrames);
+                        int[] intGraphBuffer = sd.audioSampleCurrent.getGraphBuffer(fltStartRmsFrame, intPageSizeInRmsFrames, fltRmsFrameSizeInShorts);
                         sd.audioGraph.updateGraph(intGraphBuffer);
                     }
                     sd.audioGraph.invalidate();
