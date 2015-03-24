@@ -4,6 +4,7 @@ import android.app.Activity;
 import android.app.AlertDialog;
 import android.app.Fragment;
 import android.app.FragmentManager;
+import android.content.ActivityNotFoundException;
 import android.content.Context;
 import android.content.DialogInterface;
 import android.content.Intent;
@@ -15,11 +16,13 @@ import android.media.AudioManager;
 import android.media.AudioRecord;
 import android.media.AudioTrack;
 import android.media.MediaRecorder;
+import android.net.Uri;
 import android.os.AsyncTask;
 import android.os.Bundle;
 import android.preference.ListPreference;
 import android.preference.PreferenceManager;
 import android.support.v7.app.ActionBarActivity;
+import android.text.Html;
 import android.util.Log;
 import android.view.Menu;
 import android.view.MenuItem;
@@ -76,6 +79,7 @@ public class ActivityAudioRecorder extends ActionBarActivity {
     String strAudioInsertFilenameWithoutExt = "audioinsert";
     String strAudioRightFilenameWithoutExt = "audioright";
     String strAudioScratchFilenameWithoutExt = "audioscratch";
+    String strMailFilenameWithExtension = "audionote.wav";
 
     // GUI items
     EditText editTextDescription;
@@ -1326,5 +1330,32 @@ public class ActivityAudioRecorder extends ActionBarActivity {
 
     public void enableScreenRotation() {
         ((Activity) context).setRequestedOrientation(ActivityInfo.SCREEN_ORIENTATION_SENSOR);
+    }
+
+    public void onMenuMailClicked(MenuItem item) {
+        try {
+            WavFile wavFile = new WavFile(this);
+            File fileMail = new File(sd.strWorkFolderFullPath, strMailFilenameWithExtension);
+            if (fileMail.exists()) {
+                fileMail.delete();
+            }
+            wavFile.WriteFile(sd.audioSampleCurrent,getSampleRate(),fileMail);
+            mailAudioNote((Activity) this, "Audio Note", "This audio note has been sent from TreeNotes. Please see the attachment.", fileMail);
+        } catch (IOException e) {
+            Log.e(TAG,"Error when mailing audio note", e);
+            Toast.makeText(this,e.getMessage(),Toast.LENGTH_LONG).show();
+        }
+    }
+
+    public static void mailAudioNote(Activity activity, String subject, String text, File fileAttachment) {
+
+        final Intent intent = new Intent(Intent.ACTION_SEND);
+        intent.setType("text/html");
+        String[] toArr = new String[] { "someone@somewhere.com" };
+        intent.putExtra(Intent.EXTRA_EMAIL, toArr);
+        intent.putExtra(Intent.EXTRA_SUBJECT, subject);
+        intent.putExtra(Intent.EXTRA_TEXT, Html.fromHtml(text));
+        intent.putExtra(Intent.EXTRA_STREAM, Uri.fromFile(fileAttachment));
+        activity.startActivity(intent);
     }
 }

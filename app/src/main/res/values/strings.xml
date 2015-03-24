@@ -5,7 +5,7 @@
     <string name="action_test">Test</string>
     <string name="mnu_import_audio_file">Import audio</string>
     <string name="mnu_export_audio_file">Export audio</string>
-    <string name="mnu_mail_audio_file">Share audio</string>
+    <string name="mnu_mail_audio_file">Mail audio note</string>
     <string name="action_settings">Settings</string>
     <string name="title_activity_activity_audio_recorder">AudioRecorder</string>
     <string name="file_save_button_save">Save</string>
